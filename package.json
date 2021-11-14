@@ -1,0 +1,43 @@
+{
+  "name": "predy-v1-core",
+  "version": "0.2.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "coverage": "hardhat coverage",
+    "test": "hardhat test",
+    "lint:check": "prettier --check \"contracts/**/*.sol\" \"test/**/*.ts\"",
+    "lint:write": "prettier --write \"contracts/**/*.sol\" \"test/**/*.ts\""
+  },
+  "author": "predy",
+  "license": "AGPL-3.0-or-later",
+  "devDependencies": {
+    "@eth-optimism/hardhat-ovm": "^0.2.2",
+    "@nomiclabs/hardhat-ethers": "^2.0.2",
+    "@nomiclabs/hardhat-etherscan": "^2.1.1",
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@typechain/ethers-v5": "^4.0.0",
+    "@types/chai": "^4.2.18",
+    "@types/mocha": "^8.2.2",
+    "@types/node": "^15.12.2",
+    "@uniswap/v3-periphery": "^1.1.1",
+    "chai": "^4.3.4",
+    "dotenv": "^10.0.0",
+    "ethereum-waffle": "^3.3.0",
+    "ethers": "^5.3.1",
+    "hardhat": "^2.4.3",
+    "hardhat-contract-sizer": "^2.0.3",
+    "hardhat-gas-reporter": "^1.0.4",
+    "hardhat-typechain": "^0.3.5",
+    "solidity-coverage": "^0.7.17",
+    "ts-node": "^10.0.0",
+    "typechain": "^4.0.1",
+    "typescript": "^4.3.2"
+  },
+  "dependencies": {
+    "@chainlink/contracts": "^0.1.7",
+    "@openzeppelin/contracts": "^4.1.0",
+    "prettier-plugin-solidity": "^1.0.0-beta.13"
+  }
+}

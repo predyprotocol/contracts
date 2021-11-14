@@ -1,0 +1,14 @@
+artifacts/
+cache/
+crytic-export/
+node_modules/
+typechain/
+
+coverage/
+coverage.json
+
+artifacts-ovm/
+cache-ovm/
+optimism
+
+.env
