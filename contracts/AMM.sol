@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./lib/AMMLib.sol";
 import "./PriceOracle.sol";
 import "./OptionVault.sol";
@@ -15,7 +16,7 @@ import "./interfaces/IAMM.sol";
  * @notice AMM contract is Automated Market Maker for option contracts.
  * It maneges LP(Liquidity provider) tokens and liquidity to write options.
  */
-contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver {
+contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver, ReentrancyGuard {
     using AMMLib for AMMLib.PoolInfo;
     using AMMLib for mapping(uint32 => AMMLib.Tick);
     using AMMLib for AMMLib.Tick;
@@ -151,7 +152,7 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver {
         uint128 _maxDeposit,
         uint32 _tickStart,
         uint32 _tickEnd
-    ) external notEmergencyMode isDepositAllowed {
+    ) external notEmergencyMode isDepositAllowed nonReentrant {
         // validate inputs
         AMMLib.validateRange(_tickStart, _tickEnd);
 
@@ -160,10 +161,12 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver {
         require(amountDeposited > 0, "AMM: amount is too small");
         require(amountDeposited <= _maxDeposit, "AMM: amount deposited is greater than max");
         uint128 rangeId = genRangeId(_tickStart, _tickEnd);
-        _mint(msg.sender, rangeId, _mintAmount, "");
 
         // receive collateral from LP
         IERC20(poolInfo.collateral).transferFrom(msg.sender, address(this), amountDeposited);
+
+        // mint LP tokens
+        _mint(msg.sender, rangeId, _mintAmount, "");
 
         lastProvidedAt[msg.sender] = block.timestamp;
 
@@ -219,7 +222,7 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver {
         uint128 _minWithdrawal,
         uint128 _rangeId,
         bool _useReservation
-    ) external notEmergencyMode {
+    ) external notEmergencyMode nonReentrant {
         // validate inputs
         (uint32 tickStart, uint32 tickEnd) = getRange(_rangeId);
         AMMLib.Reservation memory reservation = reservations[msg.sender][_rangeId];
@@ -284,7 +287,7 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver {
         uint256 _seriesId,
         uint128 _amount,
         uint128 _maxFee
-    ) external notEmergencyMode {
+    ) external notEmergencyMode nonReentrant {
         require(_amount > 0, "AMM: amount must not be 0");
 
         uint128 spot = getPrice();
@@ -308,7 +311,7 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver {
         uint256 _seriesId,
         uint128 _amount,
         uint128 _minFee
-    ) external override notEmergencyMode returns (uint128) {
+    ) external override notEmergencyMode nonReentrant returns (uint128) {
         require(_amount > 0, "AMM: amount must not be 0");
 
         require(
