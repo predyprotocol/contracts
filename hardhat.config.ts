@@ -2,7 +2,6 @@ import 'hardhat-typechain'
 import '@nomiclabs/hardhat-ethers'
 import '@nomiclabs/hardhat-waffle'
 import '@nomiclabs/hardhat-etherscan'
-import '@eth-optimism/hardhat-ovm'
 import 'hardhat-contract-sizer'
 import "hardhat-gas-reporter"
 import "solidity-coverage"
@@ -44,14 +43,8 @@ export default {
       network_id: 80001,
       gasPrice: 1e9
     },
-    optimism: {
-      url: 'http://localhost:8545',
-      ovm: true,
-    },
   },
   etherscan: {
-    // Your API key for Etherscan
-    // Obtain one at https://etherscan.io/
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
   solidity: {
@@ -62,9 +55,6 @@ export default {
         runs: 200,
       },
       metadata: {
-        // do not include the metadata hash, since this is machine dependent
-        // and we want all generated code to be deterministic
-        // https://docs.soliditylang.org/en/v0.7.6/metadata.html
         bytecodeHash: 'none',
       },
     },

@@ -111,6 +111,7 @@ library AMMLib {
 
     uint8 public constant PROTOCOL_FEE_RATIO = 1;
     uint8 public constant IVMOVE_DECREASE_RATIO = 2;
+    uint8 public constant MIN_DELTA = 3;
     uint8 public constant BASE_SPREAD = 4;
 
     /**
@@ -131,6 +132,7 @@ library AMMLib {
 
         _pool.configs[PROTOCOL_FEE_RATIO] = 10;
         _pool.configs[IVMOVE_DECREASE_RATIO] = 500;
+        _pool.configs[MIN_DELTA] = 5 * 1e6;
         _pool.configs[BASE_SPREAD] = 250;
 
         IERC20(_pool.collateral).approve(address(_pool.optionVault), MAX_UINT256);
@@ -668,7 +670,7 @@ library AMMLib {
             _step.ivMove = ivMove;
         }
 
-        premium = calculatePrice(_spotPrice, _series, _step.currentIV, x1);
+        premium = calculatePrice(_pool, _spotPrice, _series, _step.currentIV, x1);
         fee = calculateSpread(_pool, _step.stepAmount, _spotPrice, premium);
         premium = (premium * _step.stepAmount) / 1e10;
 
@@ -774,7 +776,7 @@ library AMMLib {
             _step.ivMove = ivMove;
         }
         {
-            uint128 premium = calculatePrice(_spotPrice, _series, _step.currentIV, x1);
+            uint128 premium = calculatePrice(_pool, _spotPrice, _series, _step.currentIV, x1);
             premium = premium2c(premium, _step.stepAmount);
 
             totalPremium += premium;
@@ -1064,12 +1066,21 @@ library AMMLib {
     }
 
     function calculatePrice(
+        PoolInfo storage _pool,
         uint128 _spot,
         IOptionVault.OptionSeriesView memory _series,
         uint128 _x0,
         uint128 _x1
-    ) internal pure returns (uint128) {
-        uint256 p = PriceCalculator.calculatePrice2(_spot, _series.strike, _series.maturity, _x0, _x1, _series.isPut);
+    ) internal view returns (uint128) {
+        uint256 p = PriceCalculator.calculatePrice2(
+            _spot,
+            _series.strike,
+            _series.maturity,
+            _x0,
+            _x1,
+            _series.isPut,
+            _pool.configs[MIN_DELTA]
+        );
         return uint128(p);
     }
 
@@ -1186,7 +1197,7 @@ library AMMLib {
             // pricePerAmount is estimation price when IV moves from lower to _step.position (price/amount)
             uint128 availableSize;
             {
-                uint128 pricePerAmount = calculatePrice(_spot, _series, _iv0, _iv1);
+                uint128 pricePerAmount = calculatePrice(_pool, _spot, _series, _iv0, _iv1);
                 uint128 safeMargin = _pool.optionVault.calRequiredMarginForASeries(
                     _series.seriesId,
                     -1e8,

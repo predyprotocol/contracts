@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "./AdvancedMath.sol";
 
 /**
- * @notice Liner bonding curve using Black-Scholes formula
+ * @notice Option price calculator using Black-Scholes formula
  */
 library PriceCalculator {
     /// @dev sqrt(365 * 86400)
@@ -51,7 +51,13 @@ library PriceCalculator {
 
         return
             uint256(
-                calOptionPrice(Parameters(int256(_spot), int256(_strike), logSigE4, sqrtMaturity), int256(_iv), _isPut)
+                calOptionPrice(
+                    Parameters(int256(_spot), int256(_strike), logSigE4, sqrtMaturity),
+                    int256(_iv),
+                    _isPut,
+                    // calculatePrice function never reverts by delta cut-off
+                    0
+                )
             );
     }
 
@@ -63,6 +69,7 @@ library PriceCalculator {
      * @param _x0 start IV
      * @param _x1 end IV
      * @param _isPut option type
+     * @param _minDelta minimum delta. if delta is less than minDelta or greater than (100% - minDelta), calculation reverts
      * @return premium per amount
      */
     function calculatePrice2(
@@ -71,7 +78,8 @@ library PriceCalculator {
         uint256 _maturity,
         uint256 _x0,
         uint256 _x1,
-        bool _isPut
+        bool _isPut,
+        uint256 _minDelta
     ) external pure returns (uint256 premium) {
         validateParameters(_spot, _strike);
         require(0 < _x0 && _x0 < 10 * 1e8, "PriceCalculator: 0 < x0 < 1000%");
@@ -92,7 +100,8 @@ library PriceCalculator {
                     Parameters(int256(_spot), int256(_strike), logSigE4, sqrtMaturity),
                     int256(_x0),
                     int256(_x1),
-                    _isPut
+                    _isPut,
+                    _minDelta
                 )
             );
     }
@@ -142,7 +151,8 @@ library PriceCalculator {
         Parameters memory _params,
         int256 _x0,
         int256 _x1,
-        bool _isPut
+        bool _isPut,
+        uint256 _minDelta
     ) internal pure returns (int256 premium) {
         int256 lower = _x0 / RANGE;
         int256 upper = _x1 / RANGE;
@@ -157,7 +167,7 @@ library PriceCalculator {
                 x1 = _x1 - i * RANGE;
             }
             int256 p;
-            (p, cache) = calculatePriceOfRange(_params, i, x0, x1, _isPut, cache);
+            (p, cache) = calculatePriceOfRange(_params, i, x0, x1, _isPut, cache, _minDelta);
             premium += p;
         }
         premium /= upper - lower + 1;
@@ -169,12 +179,13 @@ library PriceCalculator {
         int256 _x0,
         int256 _x1,
         bool _isPut,
-        int256 _start
+        int256 _start,
+        uint256 _minDelta
     ) internal pure returns (int256, int256) {
         if (_start == 0) {
-            _start = calOptionPrice(_params, _tick * RANGE, _isPut);
+            _start = calOptionPrice(_params, _tick * RANGE, _isPut, _minDelta);
         }
-        int256 end = calOptionPrice(_params, (_tick + 1) * RANGE, _isPut);
+        int256 end = calOptionPrice(_params, (_tick + 1) * RANGE, _isPut, _minDelta);
         // y = (end - start)/RANGE * x + start + instrict
         return ((_start + ((end - _start) * (_x1 + _x0)) / (2 * RANGE)), end);
     }
@@ -192,11 +203,14 @@ library PriceCalculator {
     function calOptionPrice(
         Parameters memory _params,
         int256 _volatility,
-        bool _isPut
+        bool _isPut,
+        uint256 _minDelta
     ) internal pure returns (int256 price) {
+        int256 nd1E8;
+
         if (_volatility > 0) {
             (int256 d1E4, int256 d2E4) = _calD1D2(_params.logSigE4, _params.sqrtMaturity, _volatility);
-            int256 nd1E8 = AdvancedMath.calStandardNormalCDF(d1E4);
+            nd1E8 = AdvancedMath.calStandardNormalCDF(d1E4);
             int256 nd2E8 = AdvancedMath.calStandardNormalCDF(d2E4);
             price = (_params.spot * nd1E8 - _params.strike * nd2E8) / 1e8;
         }
@@ -208,6 +222,12 @@ library PriceCalculator {
         } else {
             lowestPrice = (_params.spot > _params.strike) ? _params.spot - _params.strike : int256(0);
         }
+
+        // delta cut-off
+        // if option type is put, delta is `1 - N(d1)`
+        // if option type is call, delta is `N(d1)`
+        require((!_isPut && abs(nd1E8) >= _minDelta) || (_isPut && 1e8 - abs(nd1E8) >= _minDelta), "delta is too low");
+
         if (price < lowestPrice) {
             return lowestPrice;
         }
@@ -218,5 +238,9 @@ library PriceCalculator {
     function validateParameters(uint256 _spot, uint256 _strike) internal pure {
         require(_spot > 0 && _spot < 1e13, "PriceCalculator: spot price must be between 0 and 10^13");
         require(_strike > 0 && _strike < 1e13, "PriceCalculator: strike price must be between 0 and 10^13");
+    }
+
+    function abs(int256 x) internal pure returns (uint256) {
+        return uint256(x >= 0 ? x : -x);
     }
 }

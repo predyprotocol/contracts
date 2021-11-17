@@ -26,9 +26,10 @@ contract PriceCalculatorTester {
         uint256 _maturity,
         uint256 _x0,
         uint256 _x1,
-        bool _isPut
+        bool _isPut,
+        uint256 _minDelta
     ) external pure returns (uint256) {
-        return PriceCalculator.calculatePrice2(_spot, _strike, _maturity, _x0, _x1, _isPut);
+        return PriceCalculator.calculatePrice2(_spot, _strike, _maturity, _x0, _x1, _isPut, _minDelta);
     }
 
     function calculateDelta(
