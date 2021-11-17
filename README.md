@@ -1,7 +1,7 @@
 # contracts
 
 ![](https://github.com/predyprotocol/contracts/workflows/Test/badge.svg)
-[![codecov](https://codecov.io/gh/predyprotocol/contracts/branch/main/graph/badge.svg?token=CTZ3J8LSTR)](https://codecov.io/gh/predyprotocol/contracts)
+[![codecov](https://codecov.io/gh/predyprotocol/contracts/branch/main/graph/badge.svg?token=0r39HNSn84)](https://codecov.io/gh/predyprotocol/contracts)
 
 Predy is an option-specific AMM protocol.
 
