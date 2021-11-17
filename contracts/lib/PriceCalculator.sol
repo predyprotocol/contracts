@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "./AdvancedMath.sol";
 
 /**
- * @notice Liner bonding curve using Black-Scholes formula
+ * @notice Option price calculator using Black-Scholes formula
  */
 library PriceCalculator {
     /// @dev sqrt(365 * 86400)
