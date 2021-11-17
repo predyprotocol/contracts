@@ -84,7 +84,6 @@ describe('AMM', function () {
 
     testContractSet = await deployTestContractSet(wallet)
     testContractHelper = new TestContractHelper(testContractSet)
-    testContractSet.amm.setConfig(AMMConfig.MAX_TRADE_SIZE, scaledBN(1, 10))
 
     weth = testContractSet.weth
     usdc = testContractSet.usdc
@@ -874,6 +873,20 @@ describe('AMM', function () {
 
       await expect(amm.buy(seriesId, 0, maxFee)).to.be.revertedWith('AMM: amount must not be 0')
     })
+
+    it('reverts if delta is too low', async () => {
+      const amount = scaledBN(1, 7)
+      const maxFee = scaledBN(1000, 6)
+
+      // set min delta 10%
+      testContractSet.amm.setConfig(AMMConfig.MIN_DELTA, scaledBN(10, 6))
+
+      // seriesId becomes OTM(low delta)
+      await testContractHelper.updateSpot(scaledBN(500, 8))
+
+      await usdc.approve(amm.address, maxFee)
+      await expect(amm.buy(seriesId, amount, maxFee)).to.be.revertedWith('delta is too low')
+    })
   })
 
   describe('sell', () => {
@@ -1141,6 +1154,24 @@ describe('AMM', function () {
       const minFee = premium.add(scaledBN(1, 6))
       await optionVault.setApprovalForAll(amm.address, true)
       await expect(amm.sell(seriesId, amount, minFee)).to.be.revertedWith('AMM: premium is too low')
+    })
+
+    it('reverts if delta is too low', async () => {
+      const amount = scaledBN(1, 8)
+      const maxFee = scaledBN(1000, 6)
+
+      // buy options
+      await usdc.approve(amm.address, maxFee)
+      const premium = await testContractHelper.buy(seriesId, amount, maxFee)
+
+      // set min delta 10%
+      testContractSet.amm.setConfig(AMMConfig.MIN_DELTA, scaledBN(10, 6))
+
+      // seriesId becomes OTM(low delta)
+      await testContractHelper.updateSpot(scaledBN(500, 8))
+
+      const minFee = premium.add(scaledBN(1, 6))
+      await expect(amm.sell(seriesId, amount, minFee)).to.be.revertedWith('delta is too low')
     })
   })
 

@@ -15,7 +15,8 @@ export enum MarginLevel {
 export enum AMMConfig {
   PROTOCOL_FEE_RATIO = 1,
   IVMOVE_DECREASE_RATIO = 2,
-  MAX_TRADE_SIZE = 3,
+  MIN_DELTA = 3,
+  BASE_SPREAD = 4,
 }
 
 export enum OptionVaultConfig {

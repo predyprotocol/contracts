@@ -109,13 +109,16 @@ describe('PriceCalculator', () => {
     // $2200
     const spot = scaledBN(2200, 8)
     const maturity = 60 * 60 * 24 * 7
+    const minDelta = 0
 
     it('reverts if IV is 0', async () => {
       // $2200
       const strike = scaledBN(2200, 8)
       const x0 = 0
       const x1 = 100
-      await expect(tester.calculatePrice2(spot, strike, maturity, x0, x1, false)).to.be.revertedWith('0 < x0 < 1000%')
+      await expect(tester.calculatePrice2(spot, strike, maturity, x0, x1, false, minDelta)).to.be.revertedWith(
+        '0 < x0 < 1000%',
+      )
     })
 
     it('reverts if maturity is 0', async () => {
@@ -124,8 +127,34 @@ describe('PriceCalculator', () => {
       const maturity = 0
       const x0 = scaledBN(50, 6)
       const x1 = scaledBN(51, 6)
-      await expect(tester.calculatePrice2(spot, strike, maturity, x0, x1, false)).to.be.revertedWith(
+      await expect(tester.calculatePrice2(spot, strike, maturity, x0, x1, false, minDelta)).to.be.revertedWith(
         'PriceCalculator: maturity must not have expired and less than 1 year',
+      )
+    })
+
+    it('calculating call option price reverts if delta is too low', async () => {
+      // $2200
+      const strike = scaledBN(2400, 8)
+      const x0 = scaledBN(50, 6)
+      const x1 = scaledBN(51, 6)
+      // min delta is 50%
+      const minDelta = scaledBN(50, 6)
+
+      await expect(tester.calculatePrice2(spot, strike, maturity, x0, x1, false, minDelta)).to.be.revertedWith(
+        'delta is too low',
+      )
+    })
+
+    it('calculating put option price reverts if delta is too low', async () => {
+      // $2200
+      const strike = scaledBN(2000, 8)
+      const x0 = scaledBN(50, 6)
+      const x1 = scaledBN(51, 6)
+      // min delta is 50%
+      const minDelta = scaledBN(50, 6)
+
+      await expect(tester.calculatePrice2(spot, strike, maturity, x0, x1, true, minDelta)).to.be.revertedWith(
+        'delta is too low',
       )
     })
 
@@ -138,7 +167,7 @@ describe('PriceCalculator', () => {
         const spot = scaledBN(600, 8)
         // $300
         const strike = scaledBN(300, 8)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false, minDelta)
 
         // asserts
         expect(premium).to.be.eq('30000000000')
@@ -152,7 +181,7 @@ describe('PriceCalculator', () => {
         const spot = scaledBN(300, 8)
         // $600
         const strike = scaledBN(600, 8)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false, minDelta)
 
         // asserts
         expect(premium).to.be.eq(0)
@@ -166,7 +195,7 @@ describe('PriceCalculator', () => {
       it('calculate ATM call option price', async () => {
         // $2200
         const strike = scaledBN(2200, 8)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('6128526800')
@@ -175,7 +204,7 @@ describe('PriceCalculator', () => {
       it('calculate OTM call option price', async () => {
         // $2400
         const strike = scaledBN(2400, 8)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('909061640')
@@ -184,7 +213,9 @@ describe('PriceCalculator', () => {
       it('calculate ITM call option price', async () => {
         // $2000
         const strike = scaledBN(2000, 8)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false)
+        const minDelta = scaledBN(10, 6)
+
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('20663097655')
@@ -193,7 +224,7 @@ describe('PriceCalculator', () => {
       it('calculate ATM put option price', async () => {
         // $2200
         const strike = scaledBN(2200, 8)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('6128526800')
@@ -202,7 +233,7 @@ describe('PriceCalculator', () => {
       it('calculate OTM put option price', async () => {
         // $2000
         const strike = scaledBN(2000, 8)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('663097655')
@@ -211,7 +242,9 @@ describe('PriceCalculator', () => {
       it('calculate ITM put option price', async () => {
         // $2400
         const strike = scaledBN(2400, 8)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true)
+        const minDelta = scaledBN(10, 6)
+
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('20909061640')
@@ -226,7 +259,7 @@ describe('PriceCalculator', () => {
       it('calculate ATM call option price', async () => {
         // $2200
         const strike = scaledBN(2200, 8)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('12189185250')
@@ -235,7 +268,7 @@ describe('PriceCalculator', () => {
       it('calculate OTM call option price', async () => {
         // $2400
         const strike = scaledBN(2400, 8)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('5157672820')
@@ -244,7 +277,7 @@ describe('PriceCalculator', () => {
       it('calculate call option price with high strike price', async () => {
         // $5000
         const strike = scaledBN(5000, 8)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false, minDelta)
 
         // asserts
         expect(premium).to.be.eq(1560)
@@ -253,7 +286,7 @@ describe('PriceCalculator', () => {
       it('calculate ITM call option price', async () => {
         // $2000
         const strike = scaledBN(2000, 8)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('24261954880')
@@ -262,7 +295,7 @@ describe('PriceCalculator', () => {
       it('calculate ATM put option price', async () => {
         // $2200
         const strike = scaledBN(2200, 8)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('12189185250')
@@ -271,7 +304,7 @@ describe('PriceCalculator', () => {
       it('calculate OTM put option price', async () => {
         // $2000
         const strike = scaledBN(2000, 8)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('4261954880')
@@ -280,7 +313,7 @@ describe('PriceCalculator', () => {
       it('calculate call option price with low strike price', async () => {
         // $1000
         const strike = scaledBN(1000, 8)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true, minDelta)
 
         // asserts
         expect(premium).to.be.eq(0)
@@ -289,7 +322,7 @@ describe('PriceCalculator', () => {
       it('calculate ITM put option price', async () => {
         // $2400
         const strike = scaledBN(2400, 8)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('25157672820')
@@ -301,7 +334,7 @@ describe('PriceCalculator', () => {
         const strike = scaledBN(2200, 8)
         const x0 = scaledBN(60, 6)
         const x1 = scaledBN(80, 6)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('9097268400')
@@ -311,7 +344,7 @@ describe('PriceCalculator', () => {
         const strike = scaledBN(2200, 8)
         const x0 = scaledBN(70, 6)
         const x1 = scaledBN(90, 6)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('9703013100')
@@ -321,7 +354,7 @@ describe('PriceCalculator', () => {
         const strike = scaledBN(2200, 8)
         const x0 = '121000000'
         const x1 = '121000001'
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, false, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('14673762570')
@@ -333,7 +366,7 @@ describe('PriceCalculator', () => {
         const strike = scaledBN(2200, 8)
         const x0 = scaledBN(60, 6)
         const x1 = scaledBN(80, 6)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('9097268400')
@@ -343,7 +376,7 @@ describe('PriceCalculator', () => {
         const strike = scaledBN(2200, 8)
         const x0 = scaledBN(70, 6)
         const x1 = scaledBN(90, 6)
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('9703013100')
@@ -353,7 +386,7 @@ describe('PriceCalculator', () => {
         const strike = scaledBN(2200, 8)
         const x0 = '121000000'
         const x1 = '121000001'
-        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true)
+        const premium = await tester.calculatePrice2(spot, strike, maturity, x0, x1, true, minDelta)
 
         // asserts
         expect(premium.toString()).to.be.eq('14673762570')
