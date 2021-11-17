@@ -38,6 +38,9 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver {
     /// @dev emergency mode or not
     bool isEmergencyMode;
 
+    /// @dev nobody can provide liquidity after depositAllowedUntil timestamp
+    uint256 depositAllowedUntil;
+
     /// @dev lp address => rangeId => amount of reservation
     mapping(address => mapping(uint256 => AMMLib.Reservation)) public reservations;
 
@@ -67,6 +70,11 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver {
         _;
     }
 
+    modifier isDepositAllowed() {
+        require(block.timestamp < depositAllowedUntil, "AMM: deposit not allowed");
+        _;
+    }
+
     modifier notEmergencyMode() {
         require(!isEmergencyMode, "AMM: emergency mode");
         _;
@@ -87,6 +95,8 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver {
         priceOracle = PriceOracle(_priceOracle);
 
         feePool = IFeePool(_feeRecepient);
+
+        depositAllowedUntil = 2**256 - 1;
 
         poolInfo.init(_aggregator, _collateral, _optionContract);
     }
@@ -141,7 +151,7 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver {
         uint128 _maxDeposit,
         uint32 _tickStart,
         uint32 _tickEnd
-    ) external notEmergencyMode {
+    ) external notEmergencyMode isDepositAllowed {
         // validate inputs
         AMMLib.validateRange(_tickStart, _tickEnd);
 
@@ -365,6 +375,14 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver {
         isEmergencyMode = _isEmergencyMode;
 
         emit EmergencyStateChanged(_isEmergencyMode);
+    }
+
+    /**
+     * @notice set depositAllowedUntil parameter
+     * @param _depositAllowedUntil no one can provide liquidity after this timestamp
+     */
+    function setDepositAllowedUntil(uint256 _depositAllowedUntil) external onlyOperator {
+        depositAllowedUntil = _depositAllowedUntil;
     }
 
     function setLockupPeriod(uint256 _lockupPeriod) external onlyOperator {

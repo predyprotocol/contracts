@@ -200,6 +200,23 @@ describe('AMM', function () {
         'AMM: amount deposited is greater than max',
       )
     })
+
+    it('reverts if deposit is not allowed', async () => {
+      const depositAllowedUntil = await getExpiry(1)
+
+      await amm.setDepositAllowedUntil(depositAllowedUntil)
+
+      await usdc.approve(amm.address, depositAmount)
+      await amm.deposit(depositAmount, depositAmount, tickLower, tickUpper)
+
+      await setTime(depositAllowedUntil + 60)
+
+      // no one can deposit after depositAllowedUntil timestamp
+      await usdc.approve(amm.address, depositAmount)
+      await expect(amm.deposit(depositAmount, depositAmount, tickLower, tickUpper)).to.be.revertedWith(
+        'AMM: deposit not allowed',
+      )
+    })
   })
 
   describe('reserveWithdrawal', () => {
