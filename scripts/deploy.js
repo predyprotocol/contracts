@@ -1,5 +1,8 @@
 const { ethers } = require("hardhat");
 
+const BASE_SPREAD = 4
+const SPREAD_OF_SWAP = 5
+
 async function main() {
   const signer = await ethers.getSigner()
   const network = await signer.provider.getNetwork()
@@ -14,6 +17,8 @@ async function main() {
   let priceOracleAddress = null
   let priceCalculatorAddress = null
   let feePoolAddress = null
+  let ammLibAddress = null
+  let optionLibAddress = null
 
   let optionURI = ''
   let lpTokenURI = ''
@@ -24,13 +29,20 @@ async function main() {
     // kovan
     aggregatorAddress = '0x9326BFA02ADD2366b30bacB125260Af641031331'
     wethAddress = '0xd0a1e359811322d97991e03f863a0c30c2cf029c'
+
+    // replace to link address
+    aggregatorAddress = '0x396c5E36DD0a0F5a5D33dae44368D4193f69a1F0'
+    wethAddress = '0xAD5ce863aE3E4E9394Ab43d4ba0D80f419F61789'
+
     usdcAddress = '0xe22da380ee6b445bb8273c81944adeb6e8450422'
     lendingPoolAddress = '0xE0fBa4Fc209b4948668006B2bE61711b7f465bAe'
     botAddress = '0x00980ae805112d6ae97fdbe0d50f916bdecc1e34'
 
-    priceCalculatorAddress = '0x69F93510B7FB7A1BECd520Cd60Aae62065d4a18d'
-    priceOracleAddress = '0xEaeF015655a9D6A922AFcc27B3dFEDD1591E7ec9'
+    priceCalculatorAddress = '0xbA21E414a411006ffD537DB37833F4591ae6A52c'
+    priceOracleAddress = '0x6c272999e488af31991e7c9F875f4E93b72901fc'
     feePoolAddress = '0x7ddf1C3398911fe64459162269ECaB50235e1594'
+    ammLibAddress = '0xEde7eB69cdc8c8d1840cEA2e296ea52485588882'
+    optionLibAddress = '0xde3b7a4C30aA6443CAD98763340594b7411dE0c6'
   } else if (network.name === 'rinkeby') {
     // rinkeby
     aggregatorAddress = '0x8A753747A1Fa494EC906cE90E9f37563A8AF630e'
@@ -70,11 +82,14 @@ async function main() {
   console.log("USDC: ", usdcAddress);
 
   const operatorAddress = '0x1c745d31A084a14Ba30E7c9F4B14EA762d44f194'
+  const newOperatorAddress = '0xb8d843c8E6e0E90eD2eDe80550856b64da92ee30'
 
   // deploy price calculator
   if (priceCalculatorAddress === null) {
     const PriceCalculator = await ethers.getContractFactory('PriceCalculator')
     const priceCalculator = await PriceCalculator.deploy()
+
+    await priceCalculator.deployTransaction.wait()
 
     priceCalculatorAddress = priceCalculator.address
   }
@@ -82,29 +97,43 @@ async function main() {
   console.log("PriceCalculator: ", priceCalculatorAddress);
 
   // deploy option vault library
-  const OptionLib = await ethers.getContractFactory('OptionLib', {
-    libraries: {
-      PriceCalculator: priceCalculatorAddress,
-    },
-  })
-  const optionLib = await OptionLib.deploy()
+  if (optionLibAddress === null) {
+    const OptionLib = await ethers.getContractFactory('OptionLib', {
+      libraries: {
+        PriceCalculator: priceCalculatorAddress,
+      },
+    })
+    const optionLib = await OptionLib.deploy()
 
-  console.log("OptionLib: ", optionLib.address);
+    await optionLib.deployTransaction.wait()
+
+    optionLibAddress = optionLib.address
+  }
+
+  console.log("OptionLib: ", optionLibAddress);
 
   // deploy option AMM library
-  const AMMLib = await ethers.getContractFactory('AMMLib', {
-    libraries: {
-      PriceCalculator: priceCalculatorAddress,
-    },
-  })
-  const ammLib = await AMMLib.deploy()
+  if (ammLibAddress === null) {
+    const AMMLib = await ethers.getContractFactory('AMMLib', {
+      libraries: {
+        PriceCalculator: priceCalculatorAddress,
+      },
+    })
+    const ammLib = await AMMLib.deploy()
 
-  console.log("AMMLib: ", ammLib.address);
+    await ammLib.deployTransaction.wait()
+
+    ammLibAddress = ammLib.address
+  }
+
+  console.log("AMMLib: ", ammLibAddress);
 
   // deploy fee pool
   if (feePoolAddress === null) {
     const FeePool = await ethers.getContractFactory('FeePool')
     const feePool = await FeePool.deploy(usdcAddress)
+
+    await feePool.deployTransaction.wait()
 
     feePoolAddress = feePool.address
   }
@@ -115,7 +144,12 @@ async function main() {
   if (priceOracleAddress == null) {
     const PriceOracle = await ethers.getContractFactory('PriceOracle')
     const priceOracle = await PriceOracle.deploy()
-    await priceOracle.setAggregator(aggregatorAddress)
+
+    await priceOracle.deployTransaction.wait()
+
+    const tx = await priceOracle.setAggregator(aggregatorAddress)
+
+    await tx.wait()
 
     priceOracleAddress = priceOracleAddress
   }
@@ -125,28 +159,32 @@ async function main() {
   // deploy option vault factory
   const OptionVaultFactory = await ethers.getContractFactory('OptionVaultFactory', {
     libraries: {
-      OptionLib: optionLib.address,
+      OptionLib: optionLibAddress,
     },
   })
 
   // deploy AMM factory
   const AMMFactory = await ethers.getContractFactory('AMMFactory', {
     libraries: {
-      AMMLib: ammLib.address,
+      AMMLib: ammLibAddress,
     },
   })
 
   const AMM = await ethers.getContractFactory('AMM', {
     libraries: {
-      AMMLib: ammLib.address,
+      AMMLib: ammLibAddress,
     },
   })
 
   const optionVaultFactory = await OptionVaultFactory.deploy(
     usdcAddress,
-    priceOracle.address,
+    priceOracleAddress,
     { gasLimit: 6000000 }
   )
+
+  await optionVaultFactory.deployTransaction.wait()
+
+  console.log("OptionVaultFactory: ", optionVaultFactory.address);
 
   const ammFactory = await AMMFactory.deploy(
     usdcAddress,
@@ -157,9 +195,12 @@ async function main() {
     { gasLimit: 6000000 }
   )
 
-  await optionVaultFactory.setAMMFactoryAddress(ammFactory.address)
+  await ammFactory.deployTransaction.wait()
 
-  console.log("OptionVaultFactory: ", optionVaultFactory.address);
+  const setAMMFactoryAddressTx = await optionVaultFactory.setAMMFactoryAddress(ammFactory.address)
+
+  await setAMMFactoryAddressTx.wait()
+
   console.log("AMMFactory: ", ammFactory.address);
 
   async function createPool(aggregator) {
@@ -178,7 +219,10 @@ async function main() {
 
   const amm = await AMM.attach(ethPool.ammAddress)
 
-  await amm.setBot(botAddress, { gasLimit: 300000 });
+  const setBotTx = await amm.setBot(botAddress, { gasLimit: 300000 });
+  await setBotTx.wait()
+
+  await amm.setNewOperator(newOperatorAddress);
 
   console.log("ETH vault: ", ethPool.optionsVaultAddress);
   console.log("ETH AMM: ", ethPool.ammAddress);
