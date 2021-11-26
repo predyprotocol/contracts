@@ -133,7 +133,8 @@ library AMMLib {
         _pool.configs[PROTOCOL_FEE_RATIO] = 10;
         _pool.configs[IVMOVE_DECREASE_RATIO] = 500;
         _pool.configs[MIN_DELTA] = 5 * 1e6;
-        _pool.configs[BASE_SPREAD] = 250;
+        // 1 / 500 = 0.2%
+        _pool.configs[BASE_SPREAD] = 500;
 
         IERC20(_pool.collateral).approve(address(_pool.optionVault), MAX_UINT256);
         IERC1155(address(_pool.optionVault)).setApprovalForAll(address(_pool.optionVault), true);

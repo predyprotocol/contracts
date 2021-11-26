@@ -94,8 +94,8 @@ library OptionLib {
         _optionInfo.configs[CALL_SAFE_RATIO] = 1200;
         // 120%
         _optionInfo.configs[PUT_SAFE_RATIO] = 1200;
-        // 0.6%
-        _optionInfo.configs[SPREAD_OF_SWAP] = 6;
+        // 0.5%
+        _optionInfo.configs[SPREAD_OF_SWAP] = 5;
         // $100
         _optionInfo.configs[BASE_LIQ_REWARD] = 100 * 1e6;
         // 9%
