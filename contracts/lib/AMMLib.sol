@@ -322,7 +322,7 @@ library AMMLib {
         uint32 maxTickId = MIN_TICK;
 
         for (uint256 i = 0; i < expiration.seriesIds.length; i++) {
-            (uint32 _minTickId, uint32 _maxTickId) = settleInternal(_pool, _expiryId, expiration.seriesIds[i]);
+            (uint32 _minTickId, uint32 _maxTickId) = settleInternal(_pool, expiration.seriesIds[i]);
 
             if (minTickId > _minTickId) {
                 minTickId = _minTickId;
@@ -356,11 +356,10 @@ library AMMLib {
         }
     }
 
-    function settleInternal(
-        PoolInfo storage _pool,
-        uint256 _expiryId,
-        uint256 _seriesId
-    ) internal returns (uint32 minTickId, uint32 maxTickId) {
+    function settleInternal(PoolInfo storage _pool, uint256 _seriesId)
+        internal
+        returns (uint32 minTickId, uint32 maxTickId)
+    {
         LockedOptionStatePerTick[] memory lockedOptionStates = _pool.locked[_seriesId];
 
         minTickId = MAX_TICK;
