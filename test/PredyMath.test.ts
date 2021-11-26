@@ -105,9 +105,7 @@ describe('PredyMath', function () {
       const y = 200
       const d = 100
 
-      await expect(tester.testMulDiv(x, y, d, false)).to.be.revertedWith(
-        'SafeCast: value doesn\'t fit in 128 bits',
-      )
+      await expect(tester.testMulDiv(x, y, d, false)).to.be.revertedWith("SafeCast: value doesn't fit in 128 bits")
     })
   })
 

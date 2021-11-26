@@ -191,7 +191,7 @@ library OptionLib {
 
         checkOptionSeriesIsLive(_optionInfo.expiries[_expiryId]);
 
-        decreaseCollateral(_optionInfo, vault, _amount);
+        decreaseCollateral(vault, _amount);
 
         checkCollateral(_optionInfo, _accountId, _expiryId, _spot);
     }
@@ -220,7 +220,7 @@ library OptionLib {
             )) / _cRatio;
 
         if (collateralValue > requiredCollateral) {
-            return decreaseCollateral(_optionInfo, vault, collateralValue - requiredCollateral);
+            return decreaseCollateral(vault, collateralValue - requiredCollateral);
         } else {
             return 0;
         }
@@ -363,7 +363,7 @@ library OptionLib {
             reward = collateralValue - maintenanceMargin;
         }
 
-        return decreaseCollateral(_optionInfo, vault, reward);
+        return decreaseCollateral(vault, reward);
     }
 
     /**
@@ -420,7 +420,7 @@ library OptionLib {
 
         updateExpiredCount(_optionInfo, _expiryId);
 
-        decreaseCollateral(_optionInfo, vault, payout);
+        decreaseCollateral(vault, payout);
 
         settledAmount = vault.collateral;
     }
@@ -491,7 +491,7 @@ library OptionLib {
 
         require(vault.collateral >= uint128(_collateralAmount), "OptionLib: no enough collateral");
 
-        decreaseCollateral(_optionInfo, vault, uint128(_collateralAmount));
+        decreaseCollateral(vault, uint128(_collateralAmount));
 
         IERC20(_optionInfo.tokens.collateral).transfer(msg.sender, _collateralAmount);
 
@@ -770,11 +770,7 @@ library OptionLib {
         _vault.collateral += _amount;
     }
 
-    function decreaseCollateral(
-        OptionInfo storage _optionInfo,
-        IOptionVault.Vault storage _vault,
-        uint128 _amount
-    ) internal returns (uint128) {
+    function decreaseCollateral(IOptionVault.Vault storage _vault, uint128 _amount) internal returns (uint128) {
         if (_vault.collateral >= _amount) {
             _vault.collateral -= _amount;
             return _amount;
@@ -1105,7 +1101,7 @@ library OptionLib {
 
         require(vault.collateral >= depositCollateral, "OptionLib: no enough collateral");
 
-        depositCollateral = decreaseCollateral(_optionInfo, vault, depositCollateral);
+        depositCollateral = decreaseCollateral(vault, depositCollateral);
         vault.shortLiquidity += depositCollateral;
         _optionInfo.totalDepositedToLendingPool += depositCollateral;
     }

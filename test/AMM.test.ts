@@ -1653,7 +1653,6 @@ describe('AMM', function () {
       await amm.sell(seriesId, shortAmount, minFee)
     })
 
-
     it('buy options within a long tick', async () => {
       // short position
       const vaultId = await testContractHelper.createAccount(other)
