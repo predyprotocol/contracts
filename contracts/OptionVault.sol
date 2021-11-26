@@ -428,12 +428,6 @@ contract OptionVault is IOptionVault, ERC1155, IERC1155Receiver {
         emit Liquidated(_accountId, _seriesId);
     }
 
-    function decreaseDebt(uint128 _amount) external {
-        optionInfo.excessDebt -= _amount;
-
-        IERC20(optionInfo.tokens.collateral).transferFrom(msg.sender, address(this), _amount);
-    }
-
     /**
      * @notice claim profit of some amount of expired option contracts.
      * @param _seriesId option series id

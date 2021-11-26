@@ -33,8 +33,6 @@ library OptionLib {
         mapping(uint256 => IOptionVault.Expiration) expiries;
         //
         mapping(uint256 => IOptionVault.OptionSeries) serieses;
-        // trackthe amount of excess debt
-        uint128 excessDebt;
         // counter of vaults
         uint256 vaultCount;
         // accountId => IOptionVault.Account
@@ -421,11 +419,6 @@ library OptionLib {
         account.settledCount = _expiryId;
 
         updateExpiredCount(_optionInfo, _expiryId);
-
-        // add debt
-        if (payout > vault.collateral) {
-            _optionInfo.excessDebt += payout - vault.collateral;
-        }
 
         decreaseCollateral(_optionInfo, vault, payout);
 
