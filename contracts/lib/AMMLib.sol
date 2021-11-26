@@ -154,6 +154,8 @@ library AMMLib {
         for (uint32 i = _tickStart; i < _tickEnd; i++) {
             Tick storage tick = _pool.ticks[i];
             if (tick.supply > 0) {
+                // We use roundUp here to make sure that the money going into the contract
+                // is always equal or greater than the money going out.
                 uint128 a = calSwapAmountForLPToken(tick, mintPerRange, true);
 
                 tick.balance += a;
@@ -1204,7 +1206,7 @@ library AMMLib {
                     IOptionVault.MarginLevel.Safe
                 );
 
-                availableSize = uint128(PredyMath.mulDiv(_c, 1e10, (pricePerAmount + 1e2 * safeMargin), true));
+                availableSize = (_c * 1e10) / (pricePerAmount + 1e2 * safeMargin);
             }
 
             uint128 ivMove = calIVMove(_pool, ivRange / availableSize, locked.ivMove, locked.tradeTime);
