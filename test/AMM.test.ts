@@ -14,6 +14,8 @@ import {
 import { VaultErrors } from './utils/errors'
 
 describe('AMM', function () {
+  const MaxInt128 = BigNumber.from(2).pow(127).sub(1)
+
   let wallet: Wallet, other: Wallet
   let weth: MockERC20
   let usdc: MockERC20
@@ -93,11 +95,13 @@ describe('AMM', function () {
 
   beforeEach(async () => {
     snapshotId = await takeSnapshot()
-    // mint 100 ETH
-    const testAmount = scaledBN(100, 18)
+
+    // mint 2^127 - 1 ETH
+    const testAmount = MaxInt128
     await weth.mint(wallet.address, testAmount)
-    // mint 100 USDC
-    const testUsdcAmount = scaledBN(100000, 6)
+
+    // mint 2^127 - 1 USDC
+    const testUsdcAmount = MaxInt128
     await usdc.mint(wallet.address, testUsdcAmount)
     await usdc.mint(other.address, testUsdcAmount)
 
@@ -1586,6 +1590,162 @@ describe('AMM', function () {
 
       // previous operator can't call setBot
       await expect(amm.setBot(other.address)).to.be.revertedWith('AMM: caller must be operator')
+    })
+  })
+
+  describe('deposit large amount of collateral', () => {
+    let expiry: number
+    let expiryId: BigNumber
+    let seriesId: BigNumber
+    // 1,000B USDC
+    const depositAmount = scaledBN(1, 18)
+    const lower = 9
+    const upper = 11
+    const rangeId = genRangeId(lower, upper)
+
+    beforeEach(async () => {
+      expiry = await getExpiry(28)
+      const strike = scaledBN(1010, 8)
+      const iv1 = scaledBN(100, 6)
+      const iv2 = scaledBN(100, 6)
+
+      const result = await testContractHelper.createExpiry(expiry, [strike, strike], [iv1, iv2])
+
+      expiryId = result.expiryId
+      seriesId = result.calls[0]
+
+      // deposit
+      await usdc.approve(amm.address, depositAmount)
+      await amm.deposit(depositAmount, depositAmount, lower, upper)
+    })
+
+    it('buy small amount of options within a short tick', async () => {
+      const amount = scaledBN(1, 8)
+      const maxFee = scaledBN(1000, 6)
+
+      const before = await optionVault.balanceOf(wallet.address, seriesId)
+      await usdc.approve(amm.address, maxFee)
+      const premium = await testContractHelper.buy(seriesId, amount, maxFee)
+      const after = await optionVault.balanceOf(wallet.address, seriesId)
+
+      // assertions
+      expect(after.sub(before)).to.be.eq(amount)
+      expect(premium).to.be.gt(0)
+    })
+
+    it('buy and sell large amount of options within a short tick', async () => {
+      // 1000,000 ETH
+      const amount = scaledBN(1, 14)
+      const maxFee = scaledBN(1, 16)
+
+      const before = await optionVault.balanceOf(wallet.address, seriesId)
+      await usdc.approve(amm.address, maxFee)
+      const premium = await testContractHelper.buy(seriesId, amount, maxFee)
+      const after = await optionVault.balanceOf(wallet.address, seriesId)
+
+      // assertions
+      expect(after.sub(before)).to.be.eq(amount)
+      expect(premium).to.be.gt(0)
+
+      const shortAmount = scaledBN(9, 13)
+      const minFee = 0
+
+      await amm.sell(seriesId, shortAmount, minFee)
+    })
+
+
+    it('buy options within a long tick', async () => {
+      // short position
+      const vaultId = await testContractHelper.createAccount(other)
+      const collateral = scaledBN(1000, 6)
+      const shortAmount = scaledBN(1, 8)
+      // deposit usdc to the vault
+      await usdc.connect(other).approve(optionVault.address, collateral)
+      await optionVault.connect(other).deposit(vaultId, expiryId, collateral)
+      await optionVault.connect(other).write(vaultId, seriesId, shortAmount, other.address)
+
+      // sell options
+      const minFee = 0
+
+      await amm.connect(other).sell(seriesId, shortAmount, minFee)
+
+      // iv is under 100%
+      expect(await getIV(seriesId)).to.be.lt(100000000)
+
+      const amount = scaledBN(5, 7)
+      const maxFee = scaledBN(1000, 6)
+
+      await usdc.approve(amm.address, maxFee)
+
+      const before = await optionVault.balanceOf(wallet.address, seriesId)
+      const premium = await testContractHelper.buy(seriesId, amount, maxFee)
+      const after = await optionVault.balanceOf(wallet.address, seriesId)
+
+      // assertions
+      expect(after.sub(before)).to.be.eq(amount)
+      expect(premium).to.be.gt(0)
+    })
+
+    it('sell and buy large amount of options within a long tick', async () => {
+      // short position
+      const vaultId = await testContractHelper.createAccount(other)
+      // 200B USDC
+      const collateral = scaledBN(2, 17)
+      // 1,000,000 ETH
+      const shortAmount = scaledBN(1, 14)
+      // deposit usdc to the vault
+      await usdc.connect(other).approve(optionVault.address, collateral)
+      await optionVault.connect(other).deposit(vaultId, expiryId, collateral)
+      await optionVault.connect(other).write(vaultId, seriesId, shortAmount, other.address)
+
+      // sell options
+      const minFee = 0
+
+      await amm.connect(other).sell(seriesId, shortAmount, minFee)
+
+      // iv is under 100%
+      expect(await getIV(seriesId)).to.be.lt(100000000)
+
+      // buy options
+      const amount = scaledBN(9, 13)
+      const maxFee = scaledBN(1, 14)
+
+      await usdc.approve(amm.address, maxFee)
+
+      const before = await optionVault.balanceOf(wallet.address, seriesId)
+      const premium = await testContractHelper.buy(seriesId, amount, maxFee)
+      const after = await optionVault.balanceOf(wallet.address, seriesId)
+
+      // assertions
+      expect(after.sub(before)).to.be.eq(amount)
+      expect(premium).to.be.gt(0)
+    })
+
+    it('settle and withdraw', async () => {
+      const price = scaledBN(1020, 8)
+      const amount = scaledBN(1, 8)
+      const maxFee = scaledBN(1000, 6)
+
+      await usdc.approve(amm.address, maxFee)
+      await testContractHelper.buy(seriesId, amount, maxFee)
+
+      // expiration passed
+      await setTime(expiry + 60)
+      await testContractHelper.updateExpiryPrice(expiry, price)
+      await increaseTime(60 * 60 * 2)
+
+      // settlement
+      await amm.settle(expiryId)
+
+      // withdraw all
+      const withdrawableAmount = await amm.getWithdrawableAmount(depositAmount, lower, upper)
+
+      const before = await usdc.balanceOf(wallet.address)
+      await amm.withdraw(depositAmount, withdrawableAmount, rangeId, false)
+      const after = await usdc.balanceOf(wallet.address)
+
+      // assertion
+      expect(after.sub(before)).to.be.eq(withdrawableAmount)
     })
   })
 })

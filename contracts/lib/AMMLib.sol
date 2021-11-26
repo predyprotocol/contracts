@@ -1245,6 +1245,11 @@ library AMMLib {
             _ivMove = _previousIVMove;
         }
 
+        // minimal ivMove is 1
+        if (_ivMove == 0) {
+            _ivMove = 1;
+        }
+
         return _ivMove;
     }
 
