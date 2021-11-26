@@ -60,6 +60,9 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver, ReentrancyGuard {
     event OptionSold(uint256 seriesId, address indexed seller, uint128 amount, uint128 premium);
     event Settled(uint256 indexed _expiryId, uint128 protocolFee);
     event EmergencyStateChanged(bool isEmergencyMode);
+    event ConfigUpdated(uint8 key, uint128 value);
+    event DepositAllowedUntilUpdated(uint256 depositAllowedUntil);
+    event LockupPeriodUpdated(uint256 period);
 
     modifier onlyOperator() {
         require(msg.sender == operator, "AMM: caller must be operator");
@@ -386,10 +389,18 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver, ReentrancyGuard {
      */
     function setDepositAllowedUntil(uint256 _depositAllowedUntil) external onlyOperator {
         depositAllowedUntil = _depositAllowedUntil;
+
+        emit DepositAllowedUntilUpdated(_depositAllowedUntil);
     }
 
+    /**
+     * @notice set lockup period
+     * @param _lockupPeriod depositor cannot withdraw during lockup period
+     */
     function setLockupPeriod(uint256 _lockupPeriod) external onlyOperator {
         lockupPeriod = _lockupPeriod;
+
+        emit LockupPeriodUpdated(_lockupPeriod);
     }
 
     function setAddressAllowedSkippingLockup(address _address, bool _isAllowed) external onlyOperator {
@@ -401,6 +412,9 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver, ReentrancyGuard {
      */
     function setConfig(uint8 _key, uint128 _value) external onlyOperator {
         poolInfo.configs[_key] = _value;
+
+        // emit event
+        emit ConfigUpdated(_key, _value);
     }
 
     /**
