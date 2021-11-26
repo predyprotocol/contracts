@@ -14,7 +14,7 @@ import "./interfaces/IAMM.sol";
 
 /**
  * @notice AMM contract is Automated Market Maker for option contracts.
- * It maneges LP(Liquidity provider) tokens and liquidity to write options.
+ * It manages LP(Liquidity provider) tokens and liquidity to write options.
  */
 contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver, ReentrancyGuard {
     using AMMLib for AMMLib.PoolInfo;
@@ -86,7 +86,7 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver, ReentrancyGuard {
         address _aggregator,
         address _collateral,
         address _priceOracle,
-        address _feeRecepient,
+        address _feeRecipient,
         address _operator,
         address _optionContract
     ) ERC1155(_uri) {
@@ -95,7 +95,7 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver, ReentrancyGuard {
 
         priceOracle = PriceOracle(_priceOracle);
 
-        feePool = IFeePool(_feeRecepient);
+        feePool = IFeePool(_feeRecipient);
 
         depositAllowedUntil = 2**256 - 1;
 
@@ -207,7 +207,7 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver, ReentrancyGuard {
 
     /**
      * @notice withdraw collateral asset from pool
-     * withdrawable amout is calculated by the following formula.
+     * withdrawable amount is calculated by the following formula.
      * amount = (burn amount) * (pool quote value) / supply
      * However, if available amount is less than the withdrawable amount,
      * LP need to make reservation in advance.
@@ -350,7 +350,7 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver, ReentrancyGuard {
         uint128 protocolFee = poolInfo.settle(_expiryId);
 
         if (protocolFee > 0) {
-            // send protocolFee to fee recepient
+            // send protocolFee to fee recipient
             IERC20(poolInfo.collateral).approve(address(feePool), protocolFee);
             feePool.sendProfitERC20(address(this), protocolFee);
         }
@@ -412,8 +412,8 @@ contract AMM is IAMM, ERC1155, Ownable, IERC1155Receiver, ReentrancyGuard {
     }
 
     /**
-     * @notice set new fee recepient
-     * @param _feeRecipient fee recepient
+     * @notice set new fee recipient
+     * @param _feeRecipient fee recipient
      */
     function setFeeRecipient(address _feeRecipient) external onlyOperator {
         feePool = IFeePool(_feeRecipient);

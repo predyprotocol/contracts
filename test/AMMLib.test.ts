@@ -178,9 +178,9 @@ describe('AMMLib', function () {
       await tester.removeBalance(rangeB.start, rangeB.end, amount)
     })
 
-    it('reverts because mint amount is not muptiples of range length', async () => {
+    it('reverts because mint amount is not multiples of range length', async () => {
       await expect(tester.addBalance(rangeA.start, rangeA.end, amount.sub(1))).to.be.revertedWith(
-        'PoolLib: mint is not muptiples of range length',
+        'PoolLib: mint is not multiples of range length',
       )
     })
   })
@@ -272,10 +272,10 @@ describe('AMMLib', function () {
       )
     })
 
-    it('reverts because burn amount is not muptiples of range lengtht', async () => {
+    it('reverts because burn amount is not multiples of range lengtht', async () => {
       await tester.addBalance(rangeA.start, rangeA.end, amount)
       await expect(tester.removeBalance(rangeA.start, rangeA.end, amount.sub(1))).to.be.revertedWith(
-        'PoolLib: burn is not muptiples of range length',
+        'PoolLib: burn is not multiples of range length',
       )
     })
   })

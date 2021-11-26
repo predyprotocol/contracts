@@ -20,7 +20,7 @@ library AdvancedMath {
     int256 internal constant b5 = 133027442;
 
     /**
-     * @dev Calcurate an approximate value of the square root of x by Babylonian method.
+     * @dev Calculate an approximate value of the square root of x by Babylonian method.
      */
     function sqrt(int256 x) internal pure returns (int256 y) {
         require(x >= 0, "cannot calculate the square root of a negative number");
@@ -38,7 +38,7 @@ library AdvancedMath {
     function logTaylor(int256 inputE4) internal pure returns (int256 outputE4) {
         require(inputE4 > 1, "input should be positive number");
         int256 inputE8 = inputE4 * 1e4;
-        // input x for _logTayler1 is adjusted to 1/e < x < 1.
+        // input x for _logTaylor1 is adjusted to 1/e < x < 1.
         while (inputE8 < INV_E_E8) {
             inputE8 = (inputE8 * E_E8) / 1e8;
             outputE4 -= 1e4;

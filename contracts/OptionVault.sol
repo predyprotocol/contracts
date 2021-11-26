@@ -34,7 +34,7 @@ contract OptionVault is IOptionVault, ERC1155, IERC1155Receiver {
     event AccountCreated(uint256 accountId, address indexed account);
     event VaultDeposited(uint256 indexed accountId, uint256 expiryId, uint128 amount);
     event VaultWithdrawn(uint256 indexed accountId, uint256 expiryId, uint128 amount);
-    event Written(uint256 indexed accountId, uint256 seriesId, uint128 amount, address recepient);
+    event Written(uint256 indexed accountId, uint256 seriesId, uint128 amount, address recipient);
     event Unlocked(uint256 indexed accountId, uint256 seriesId, uint128 amount, address holder);
     event Claimed(uint256 indexed seriesId, uint128 amount, uint128 profit);
     event Settled(uint256 accountId, uint256 indexed seriesId, uint128 profit);
@@ -238,13 +238,13 @@ contract OptionVault is IOptionVault, ERC1155, IERC1155Receiver {
      * @param _accountId vault id
      * @param _seriesId option series id
      * @param _amount amount to write scaled by 1e8
-     * @param _recepient recepient of option tokens
+     * @param _recipient recipient of option tokens
      */
     function write(
         uint256 _accountId,
         uint256 _seriesId,
         uint128 _amount,
-        address _recepient
+        address _recipient
     ) external override(IOptionVault) onlyVaultOwner(_accountId) {
         require(_amount > 0, "V9");
 
@@ -253,9 +253,9 @@ contract OptionVault is IOptionVault, ERC1155, IERC1155Receiver {
         // write options
         optionInfo.write(_accountId, _seriesId, _amount, spot);
 
-        _mint(_recepient, _seriesId, _amount, "");
+        _mint(_recipient, _seriesId, _amount, "");
 
-        emit Written(_accountId, _seriesId, _amount, _recepient);
+        emit Written(_accountId, _seriesId, _amount, _recipient);
     }
 
     /**
@@ -264,14 +264,14 @@ contract OptionVault is IOptionVault, ERC1155, IERC1155Receiver {
      * @param _seriesId option series id
      * @param _cRatio _collateral ratio of Initial Margin
      * @param _amount amount to write scaled by 1e8
-     * @param _recepient recepient of option tokens
+     * @param _recipient recipient of option tokens
      */
     function depositAndWrite(
         uint256 _accountId,
         uint256 _seriesId,
         uint128 _cRatio,
         uint128 _amount,
-        address _recepient
+        address _recipient
     ) public override(IOptionVault) onlyVaultOwner(_accountId) returns (uint128) {
         require(_amount > 0, "V9");
         require(0 < _cRatio && _cRatio <= 1e6, "V6");
@@ -290,10 +290,10 @@ contract OptionVault is IOptionVault, ERC1155, IERC1155Receiver {
 
         IERC20(optionInfo.tokens.collateral).transferFrom(msg.sender, address(this), collateral);
 
-        _mint(_recepient, _seriesId, _amount, "");
+        _mint(_recipient, _seriesId, _amount, "");
 
         emit VaultDeposited(_accountId, expiryId, collateral);
-        emit Written(_accountId, _seriesId, _amount, _recepient);
+        emit Written(_accountId, _seriesId, _amount, _recipient);
 
         return collateral;
     }
