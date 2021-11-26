@@ -517,17 +517,21 @@ contract OptionVault is IOptionVault, ERC1155, IERC1155Receiver {
     /**
      * @notice create new expiration
      * @param _expiry expiration
+     * @param _strikes strike prices
+     * @param _callIVs initial call ivs
+     * @param _putIVs initial put ivs
      */
     function createExpiry(
         uint64 _expiry,
         uint64[] memory _strikes,
-        uint64[] memory _ivs
+        uint64[] memory _callIVs,
+        uint64[] memory _putIVs
     ) external onlyOperator {
         uint128 expiryId = optionInfo.createExpiry(_expiry);
 
         for (uint256 i = 0; i < _strikes.length; i++) {
-            createSeries(expiryId, _strikes[i], false, _ivs[i]);
-            createSeries(expiryId, _strikes[i], true, _ivs[i]);
+            createSeries(expiryId, _strikes[i], false, _callIVs[i]);
+            createSeries(expiryId, _strikes[i], true, _putIVs[i]);
         }
 
         emit ExpiryCreated(expiryId, _expiry);

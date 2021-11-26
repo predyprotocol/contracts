@@ -57,7 +57,7 @@ describe('OptionVault', function () {
     it('reverts if caller is not operator', async () => {
       const expiry = await getExpiry(1)
 
-      await expect(optionVault.connect(other).createExpiry(expiry, [], [])).to.be.revertedWith(
+      await expect(optionVault.connect(other).createExpiry(expiry, [], [], [])).to.be.revertedWith(
         VaultErrors.CALLER_MST_BE_OPERATOR,
       )
     })
@@ -65,7 +65,7 @@ describe('OptionVault', function () {
     it('reverts if expiry is earlier than now', async () => {
       const expiry = await getExpiry(1)
 
-      await expect(optionVault.createExpiry(expiry - 60 * 60 * 24 * 2, [], [])).to.be.revertedWith(
+      await expect(optionVault.createExpiry(expiry - 60 * 60 * 24 * 2, [], [], [])).to.be.revertedWith(
         'OptionLib: expiry must be greater than now',
       )
     })
@@ -74,9 +74,9 @@ describe('OptionVault', function () {
       const expiry1 = await getExpiry(1)
       const expiry2 = await getExpiry(2)
 
-      await optionVault.createExpiry(expiry2, [], [])
+      await optionVault.createExpiry(expiry2, [], [], [])
 
-      await expect(optionVault.createExpiry(expiry1, [], [])).to.be.revertedWith(
+      await expect(optionVault.createExpiry(expiry1, [], [], [])).to.be.revertedWith(
         'OptionLib: expiry must be greater than or equal to last created',
       )
     })
@@ -86,7 +86,7 @@ describe('OptionVault', function () {
       const strike = scaledBN(1000, 8)
       const iv = 0
 
-      await expect(optionVault.createExpiry(expiry1, [strike], [iv])).to.be.revertedWith(
+      await expect(optionVault.createExpiry(expiry1, [strike], [iv], [iv])).to.be.revertedWith(
         'OptionLib: iv must be greater than 0 and less than 1000%',
       )
     })
@@ -95,9 +95,16 @@ describe('OptionVault', function () {
       const expiry1 = await getExpiry(1)
       const strike1 = scaledBN(1000, 8)
       const strike2 = scaledBN(1200, 8)
-      const iv = scaledBN(100, 6)
+      const calliv = scaledBN(100, 6)
+      const putiv = scaledBN(110, 6)
 
-      await optionVault.createExpiry(expiry1, [strike1, strike2], [iv, iv])
+      await optionVault.createExpiry(expiry1, [strike1, strike2], [calliv, calliv], [putiv, putiv])
+
+      const call = await optionVault.getOptionSeries(1)
+      const put = await optionVault.getOptionSeries(2)
+
+      expect(call.iv).itself.be.eq(calliv)
+      expect(put.iv).itself.be.eq(putiv)
     })
 
     it('create expirations', async () => {
@@ -107,7 +114,7 @@ describe('OptionVault', function () {
       const strike2 = scaledBN(1200, 8)
       const iv = scaledBN(100, 6)
 
-      await optionVault.createExpiry(expiry1, [strike1, strike2], [iv, iv])
+      await optionVault.createExpiry(expiry1, [strike1, strike2], [iv, iv], [iv, iv])
 
       const result = await testContractHelper.createExpiry(expiry2, [strike1, strike2], [iv, iv])
 

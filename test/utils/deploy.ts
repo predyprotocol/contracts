@@ -72,7 +72,7 @@ export class TestContractHelper {
   }
 
   async createExpiry(expiry: number, strikes: BigNumber[], ivs: BigNumber[]) {
-    const tx = await this.testContractSet.optionVault.createExpiry(expiry, strikes, ivs)
+    const tx = await this.testContractSet.optionVault.createExpiry(expiry, strikes, ivs, ivs)
 
     const receipt = await tx.wait()
     const events = receipt.events?.filter((x) => x.event === 'SeriesCreated')
