@@ -134,4 +134,20 @@ describe('PredyMath', function () {
       expect(result).to.be.eq(12345)
     })
   })
+
+  describe('toInt128', () => {
+    it('cast max value of int128', async () => {
+      const n = BigNumber.from(2).pow(127).sub(1)
+
+      const result = await tester.testToInt128(n)
+
+      expect(result).to.be.eq(n)
+    })
+
+    it('reverts if argument is greater than max value of int128', async () => {
+      const n = BigNumber.from(2).pow(127)
+
+      await expect(tester.testToInt128(n)).to.be.revertedWith("SafeCast: value doesn't fit in 128 bits")
+    })
+  })
 })

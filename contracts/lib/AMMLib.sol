@@ -16,6 +16,7 @@ library AMMLib {
     using AMMLib for AMMLib.PoolInfo;
     using AMMLib for AMMLib.Tick;
     using AMMLib for AMMLib.LockedOptionStatePerTick[];
+    using PredyMath for uint128;
 
     /// @dev max uint256
     uint256 constant MAX_UINT256 = 2**256 - 1;
@@ -804,7 +805,7 @@ library AMMLib {
         // deposit USDC to the vault for delta hedge
         uint128 lockAmount = _pool.optionVault.calRequiredMarginForASeries(
             _seriesId,
-            -int128(_step.stepAmount),
+            -_step.stepAmount.toInt128(),
             IOptionVault.MarginLevel.Safe
         );
 
@@ -815,8 +816,10 @@ library AMMLib {
         tick.balance -= (_premium + lockAmount);
 
         // add unrealized loss
-        tick.unrealizedPnL -= int128(_premium);
-        _pool.profits[_expiryId][tickId].unrealizedPnL -= int128(_premium);
+        int128 premium = _premium.toInt128();
+
+        tick.unrealizedPnL -= premium;
+        _pool.profits[_expiryId][tickId].unrealizedPnL -= premium;
 
         // additional locked amount
         _pool.lockedAmounts[tickId][_seriesId][1] += _premium;
@@ -860,9 +863,11 @@ library AMMLib {
         tick.balance += _premium;
 
         // add unrealized profit from premium
-        tick.unrealizedPnL += int128(_premium);
+        int128 premium = _premium.toInt128();
 
-        _pool.profits[_expiryId][tickId].unrealizedPnL += int128(_premium);
+        tick.unrealizedPnL += premium;
+
+        _pool.profits[_expiryId][tickId].unrealizedPnL += premium;
         _pool.profits[_expiryId][tickId].cumulativeFee += _fee;
 
         // remove options from the account
@@ -936,9 +941,11 @@ library AMMLib {
         tick.balance -= lockAmount - _premium;
 
         // add unrealized profit from premium
-        tick.unrealizedPnL += int128(_premium);
+        int128 premium = _premium.toInt128();
 
-        _pool.profits[_series.expiryId][tickId].unrealizedPnL += int128(_premium);
+        tick.unrealizedPnL += premium;
+
+        _pool.profits[_series.expiryId][tickId].unrealizedPnL += premium;
         _pool.profits[_series.expiryId][tickId].cumulativeFee += _fee;
 
         // calculate additional lock amount
@@ -994,9 +1001,11 @@ library AMMLib {
         tick.balance = balance;
 
         // add unrealized loss
-        tick.unrealizedPnL -= int128(_premium);
+        int128 premium = _premium.toInt128();
 
-        _pool.profits[_series.expiryId][tickId].unrealizedPnL -= int128(_premium);
+        tick.unrealizedPnL -= premium;
+
+        _pool.profits[_series.expiryId][tickId].unrealizedPnL -= premium;
 
         // additional locked amount
         if (_pool.lockedAmounts[tickId][_series.seriesId][0] > unrequiredCollateral) {

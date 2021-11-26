@@ -32,4 +32,8 @@ contract PredyMathTester {
     ) external pure returns (uint256) {
         return PredyMath.scale(_a, _from, _to);
     }
+
+    function testToInt128(uint256 _a) external pure returns (int128) {
+        return PredyMath.toInt128(_a);
+    }
 }

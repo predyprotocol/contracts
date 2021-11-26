@@ -14,6 +14,8 @@ import "./PredyMath.sol";
  * @title OptionLib
  */
 library OptionLib {
+    using PredyMath for uint128;
+
     struct TokenContracts {
         // collateral token
         address collateral;
@@ -756,7 +758,7 @@ library OptionLib {
         for (uint256 j = 0; j < expiration.seriesIds.length; j++) {
             uint256 seriesId = expiration.seriesIds[j];
 
-            int128 position = int128(vault.longs[seriesId]) - int128(vault.shorts[seriesId]);
+            int128 position = vault.longs[seriesId].toInt128() - vault.shorts[seriesId].toInt128();
             tickDelta += calculateDelta(sqrtMaturity, _optionInfo.serieses[seriesId], position, _spot);
         }
         return tickDelta;
@@ -793,7 +795,7 @@ library OptionLib {
         IOptionVault.Account storage account = _optionInfo.accounts[_accountId];
         IOptionVault.Vault storage vault = account.vaults[_expiryId];
 
-        int256 hedgedValue = int128(vault.shortLiquidity) + (int128(_spot) * vault.hedgePosition) / 1e10;
+        int256 hedgedValue = vault.shortLiquidity.toInt128() + (_spot.toInt128() * vault.hedgePosition) / 1e10;
 
         return uint128(uint256(hedgedValue)) + vault.collateral;
     }
@@ -833,13 +835,13 @@ library OptionLib {
             if (_marginLevel == IOptionVault.MarginLevel.Safe) {
                 requiredMargin += calMargin(
                     _optionInfo,
-                    int128(shortAmount) - int128(longAmount),
+                    shortAmount.toInt128() - longAmount.toInt128(),
                     _spot,
                     seriesParams,
                     _marginLevel
                 );
             } else {
-                requiredMargin += calMargin(_optionInfo, int128(shortAmount), _spot, seriesParams, _marginLevel);
+                requiredMargin += calMargin(_optionInfo, shortAmount.toInt128(), _spot, seriesParams, _marginLevel);
             }
         }
     }
@@ -956,7 +958,7 @@ library OptionLib {
             _expiryId,
             _seriesId,
             _spot,
-            int128(_amount),
+            _amount.toInt128(),
             _isPool ? IOptionVault.MarginLevel.Safe : IOptionVault.MarginLevel.Initial
         );
 

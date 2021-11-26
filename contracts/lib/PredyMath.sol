@@ -48,4 +48,8 @@ library PredyMath {
             return _a;
         }
     }
+
+    function toInt128(uint256 _a) internal pure returns (int128) {
+        return SafeCast.toInt128(SafeCast.toInt256(_a));
+    }
 }
