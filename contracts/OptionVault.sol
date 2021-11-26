@@ -40,6 +40,7 @@ contract OptionVault is IOptionVault, ERC1155, IERC1155Receiver {
     event Settled(uint256 accountId, uint256 indexed seriesId, uint128 profit);
     event Hedged(uint32 tickId, int256 tickDelta, int256 hedgePosition);
     event Liquidated(uint256 accountId, uint256 seriesId);
+    event ConfigUpdated(uint8 key, uint128 value);
 
     // modifiers
     modifier onlyVaultOwner(uint256 _accountId) {
@@ -544,6 +545,9 @@ contract OptionVault is IOptionVault, ERC1155, IERC1155Receiver {
     function setConfig(uint8 _key, uint128 _value) external onlyOperator {
         require(_value > 0);
         optionInfo.setConfig(_key, _value);
+
+        // emit event
+        emit ConfigUpdated(_key, _value);
     }
 
     /**
