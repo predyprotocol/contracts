@@ -24,7 +24,7 @@ export enum OptionVaultConfig {
   IM_RATIO = 2,
   CALL_SAFE_RATIO = 3,
   PUT_SAFE_RATIO = 4,
-  SPREAD_OF_SWAP = 5,
+  SLIPPAGE_TOLERANCE = 5,
   EXTENSION_PERIOD = 6,
   MIN_SIZE = 7,
   BASE_LIQ_REWARD = 8,
