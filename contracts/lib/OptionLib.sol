@@ -50,7 +50,7 @@ library OptionLib {
     uint8 public constant IM_RATIO = 2;
     uint8 public constant CALL_SAFE_RATIO = 3;
     uint8 public constant PUT_SAFE_RATIO = 4;
-    uint8 public constant SPREAD_OF_SWAP = 5;
+    uint8 public constant SLIPPAGE_TOLERANCE = 5;
     uint8 public constant BASE_LIQ_REWARD = 8;
     uint8 public constant REWARD_PER_SIZE_RATIO = 9;
 
@@ -95,7 +95,7 @@ library OptionLib {
         // 120%
         _optionInfo.configs[PUT_SAFE_RATIO] = 1200;
         // 0.5%
-        _optionInfo.configs[SPREAD_OF_SWAP] = 5;
+        _optionInfo.configs[SLIPPAGE_TOLERANCE] = 50;
         // $100
         _optionInfo.configs[BASE_LIQ_REWARD] = 100 * 1e6;
         // 9%
@@ -470,8 +470,8 @@ library OptionLib {
         }
 
         require(
-            (PredyMath.scale(_spot * _underlyingAmountE8, 16, 6) * (1000 + _optionInfo.configs[SPREAD_OF_SWAP])) /
-                1000 >=
+            (PredyMath.scale(_spot * _underlyingAmountE8, 16, 6) * (10000 + _optionInfo.configs[SLIPPAGE_TOLERANCE])) /
+                10000 >=
                 _collateralAmount,
             "OptionLib: collateral amount is too large"
         );
@@ -533,8 +533,8 @@ library OptionLib {
         );
 
         require(
-            (PredyMath.scale(_spot * _underlyingAmountE8, 16, 6) * (1000 - _optionInfo.configs[SPREAD_OF_SWAP])) /
-                1000 <=
+            (PredyMath.scale(_spot * _underlyingAmountE8, 16, 6) * (10000 - _optionInfo.configs[SLIPPAGE_TOLERANCE])) /
+                10000 <=
                 _collateralAmount,
             "OptionLib: collateral amount is too small"
         );
@@ -589,7 +589,7 @@ library OptionLib {
         );
 
         uint128 reward = (_price * repaidAmount) / 1e20;
-        reward = (reward * (1000 + _optionInfo.configs[SPREAD_OF_SWAP])) / 1000;
+        reward = (reward * (10000 + _optionInfo.configs[SLIPPAGE_TOLERANCE])) / 10000;
 
         if (reward < withdrawnAmount) {
             uint128 rewardForFeePool = withdrawnAmount - reward;
