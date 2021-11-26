@@ -22,8 +22,8 @@ contract AMMFactory {
     ///@dev operator address
     address public immutable operator;
 
-    ///@dev fee recepient
-    address public immutable feeRecepient;
+    ///@dev fee recipient
+    address public immutable feeRecipient;
 
     ///@dev price oracle
     address public immutable priceOracle;
@@ -36,19 +36,19 @@ contract AMMFactory {
     /**
      * @param _collateral collateral address
      * @param _operator operator address
-     * @param _feeRecepient fee recepient
+     * @param _feeRecipient fee recipient
      * @param _priceOracle price oracle
      */
     constructor(
         address _collateral,
         address _operator,
-        address _feeRecepient,
+        address _feeRecipient,
         address _priceOracle,
         address _optionVaultFactoryAddress
     ) {
         collateral = _collateral;
         operator = _operator;
-        feeRecepient = _feeRecepient;
+        feeRecipient = _feeRecipient;
         priceOracle = _priceOracle;
         optionVaultFactory = OptionVaultFactory(_optionVaultFactoryAddress);
     }
@@ -94,7 +94,7 @@ contract AMMFactory {
         // validate inputs
         require(_aggregator != address(0), "AMMFactory: aggregator asset address must not be 0");
 
-        AMM amm = new AMM(_uri, _aggregator, collateral, priceOracle, feeRecepient, operator, _optionContract);
+        AMM amm = new AMM(_uri, _aggregator, collateral, priceOracle, feeRecipient, operator, _optionContract);
 
         return amm;
     }

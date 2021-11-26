@@ -390,7 +390,7 @@ library OptionLib {
 
     /**
      * @notice fix payout of a vault and remove the payout from vault's collaterals
-     * @return settledAmount the amout that the vault owner can redeem
+     * @return settledAmount the amount that the vault owner can redeem
      */
     function settle(
         OptionInfo storage _optionInfo,
@@ -435,7 +435,7 @@ library OptionLib {
     /*
      * addUnderlyingLong and addUnderlyingShort are functions to achieve delta neutral.
      * vault's net delta is calculated as vaultDelta, and the protocol wanna make (vaultDelta + vault.hedgePosition) zero.
-     * hedgePosition exactlly represents how many underlying asset the vault has,
+     * hedgePosition exactly represents how many underlying asset the vault has,
      * and negative hedgePosition means short position of underlying asset.
      */
 

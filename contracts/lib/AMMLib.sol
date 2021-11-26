@@ -148,7 +148,7 @@ library AMMLib {
         uint32 _tickEnd,
         uint128 _mint
     ) external returns (uint128 depositedAmount) {
-        require(_mint % (_tickEnd - _tickStart) == 0, "PoolLib: mint is not muptiples of range length");
+        require(_mint % (_tickEnd - _tickStart) == 0, "PoolLib: mint is not multiples of range length");
         uint128 mintPerRange = _mint / (_tickEnd - _tickStart);
 
         for (uint32 i = _tickStart; i < _tickEnd; i++) {
@@ -175,7 +175,7 @@ library AMMLib {
         uint32 _tickEnd,
         uint128 _burn
     ) external {
-        require(_burn % (_tickEnd - _tickStart) == 0, "AMMLib: burn is not muptiples of range length");
+        require(_burn % (_tickEnd - _tickStart) == 0, "AMMLib: burn is not multiples of range length");
         uint128 burnPerRange = _burn / (_tickEnd - _tickStart);
 
         for (uint32 i = _tickStart; i < _tickEnd; i++) {
@@ -194,7 +194,7 @@ library AMMLib {
         uint32 _tickEnd,
         uint128 _burn
     ) external returns (uint128 withdrawnAmount) {
-        require(_burn % (_tickEnd - _tickStart) == 0, "PoolLib: burn is not muptiples of range length");
+        require(_burn % (_tickEnd - _tickStart) == 0, "PoolLib: burn is not multiples of range length");
         uint128 burnPerRange = _burn / (_tickEnd - _tickStart);
 
         for (uint32 i = _tickStart; i < _tickEnd; i++) {
@@ -215,7 +215,7 @@ library AMMLib {
         uint32 _tickEnd,
         uint128 _burn
     ) external returns (uint128 withdrawnAmount) {
-        require(_burn % (_tickEnd - _tickStart) == 0, "PoolLib: burn is not muptiples of range length");
+        require(_burn % (_tickEnd - _tickStart) == 0, "PoolLib: burn is not multiples of range length");
         uint128 burnPerRange = _burn / (_tickEnd - _tickStart);
 
         for (uint32 i = _tickStart; i < _tickEnd; i++) {
@@ -251,7 +251,7 @@ library AMMLib {
     ) external view returns (uint128 premium) {
         IOptionVault.OptionSeriesView memory optionSeries = _pool.optionVault.getOptionSeries(_seriesId);
 
-        TradeState memory step = initilizeTradeState(_amount, address(0), optionSeries.iv);
+        TradeState memory step = initializeTradeState(_amount, address(0), optionSeries.iv);
 
         // calculate premium
         premium = _calculatePremium(_pool, step, optionSeries, _spot, _isSelling);
@@ -268,11 +268,11 @@ library AMMLib {
         uint256 _seriesId,
         uint128 _amount,
         uint128 _spot,
-        address _recepient
+        address _recipient
     ) external returns (uint128 premium) {
         IOptionVault.OptionSeriesView memory optionSeries = _pool.optionVault.getOptionSeries(_seriesId);
 
-        TradeState memory step = initilizeTradeState(_amount, _recepient, optionSeries.iv);
+        TradeState memory step = initializeTradeState(_amount, _recipient, optionSeries.iv);
 
         // process buying
         (premium, step) = _buy(_pool, step, optionSeries, _spot);
@@ -300,7 +300,7 @@ library AMMLib {
 
         require(optionSeries.maturity >= 1 days, "AMMLib: maturity must be greater than 1 days");
 
-        TradeState memory step = initilizeTradeState(_amount, _seller, optionSeries.iv);
+        TradeState memory step = initializeTradeState(_amount, _seller, optionSeries.iv);
 
         // process selling
         (premium, step) = _pool._sell(step, optionSeries, _spot);
@@ -467,7 +467,7 @@ library AMMLib {
         uint32 _tickEnd,
         uint128 _burn
     ) external view returns (uint128 withdrawableAmount) {
-        require(_burn % (_tickEnd - _tickStart) == 0, "PoolLib: burn is not muptiples of range length");
+        require(_burn % (_tickEnd - _tickStart) == 0, "PoolLib: burn is not multiples of range length");
         uint128 burnPerRange = _burn / (_tickEnd - _tickStart);
 
         for (uint32 i = _tickStart; i < _tickEnd; i++) {
@@ -714,7 +714,7 @@ library AMMLib {
             _step.currentTick = _step.nextTick;
         }
 
-        require(_step.remain == 0, "AMMLib: no enough avaiable balance");
+        require(_step.remain == 0, "AMMLib: no enough available balance");
 
         return (totalPremium, _step);
     }
@@ -1104,7 +1104,7 @@ library AMMLib {
     /**
      * @notice initialize trade state
      */
-    function initilizeTradeState(
+    function initializeTradeState(
         uint128 _amount,
         address _trader,
         uint64 _iv
