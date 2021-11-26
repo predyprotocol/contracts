@@ -147,6 +147,7 @@ describe('OptionLib', function () {
       const repayAmout = scaledBN(1, 18)
       const depositAmount = scaledBN(1200, 6)
       const price = scaledBN(1000, 8)
+      const SPREAD_OF_SWAP = 5
 
       // deposit and borrow
       await usdc.approve(lendingPool.address, depositAmount)
@@ -164,7 +165,11 @@ describe('OptionLib', function () {
       const afterFeePool = await usdc.balanceOf(feePool.address)
 
       // assertions
-      const reward = repayAmout.mul(price).div(scaledBN(1, 20)).mul(1006).div(1000)
+      const reward = repayAmout
+        .mul(price)
+        .div(scaledBN(1, 20))
+        .mul(1000 + SPREAD_OF_SWAP)
+        .div(1000)
 
       expect(afterCaller.sub(beforeCaller)).to.be.eq(reward)
       expect(afterFeePool.sub(beforeFeePool)).to.be.eq(depositAmount.sub(reward))

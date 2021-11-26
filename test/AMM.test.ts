@@ -681,6 +681,7 @@ describe('AMM', function () {
     it('buy small amount', async () => {
       const amount = scaledBN(1, 7)
       const maxFee = scaledBN(1000, 6)
+      const baseSpread = await amm.getConfig(AMMConfig.BASE_SPREAD)
 
       await usdc.approve(amm.address, maxFee)
       await await testContractHelper.buy(seriesId, amount, maxFee)
@@ -701,7 +702,7 @@ describe('AMM', function () {
 
       const baseFee = premium.sub(cumulativeFee)
 
-      const expectedCumulativeFee = amount.mul(initialSpot.div(250)).div(scaledBN(1, 10)).add(baseFee.div(100))
+      const expectedCumulativeFee = amount.mul(initialSpot.div(baseSpread)).div(scaledBN(1, 10)).add(baseFee.div(100))
 
       expect(cumulativeFee).to.be.eq(expectedCumulativeFee)
     })

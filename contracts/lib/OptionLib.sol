@@ -88,14 +88,14 @@ library OptionLib {
         // initialize configs
         // 10%
         _optionInfo.configs[MM_RATIO] = 100;
-        // 15%
+        // 20%
         _optionInfo.configs[IM_RATIO] = 200;
         // 120%
         _optionInfo.configs[CALL_SAFE_RATIO] = 1200;
         // 120%
         _optionInfo.configs[PUT_SAFE_RATIO] = 1200;
-        // 0.6%
-        _optionInfo.configs[SPREAD_OF_SWAP] = 6;
+        // 0.5%
+        _optionInfo.configs[SPREAD_OF_SWAP] = 5;
         // $100
         _optionInfo.configs[BASE_LIQ_REWARD] = 100 * 1e6;
         // 9%
