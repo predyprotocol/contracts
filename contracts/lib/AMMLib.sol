@@ -1243,7 +1243,7 @@ library AMMLib {
     ) internal view returns (uint128) {
         uint128 elapsedTime = uint128(block.timestamp) - _lastTradeTime;
 
-        // IV move will decrease 86400 * 500 * 1e2 / 1e12 = 0.00432% after 1 day if IVMove-Decrease-Ratio is 500.
+        // IV move will decrease 86400 * 500 * 1e2 / 1e12 = 0.00432 = 0.432% after 1 day if IVMove-Decrease-Ratio is 500.
         uint128 decreaseIVMove = (_pool.configs[IVMOVE_DECREASE_RATIO] * elapsedTime) * 1e2;
 
         if (_previousIVMove > decreaseIVMove) {
