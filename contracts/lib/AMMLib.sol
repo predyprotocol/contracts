@@ -56,7 +56,7 @@ library AMMLib {
         uint32 tickId;
         //
         bool isLong;
-        // last iv move
+        // last iv move scaled by 1e12
         uint128 ivMove;
         // last trade time
         uint128 tradeTime;
@@ -668,7 +668,7 @@ library AMMLib {
                 _step.nextTick = _step.currentTick + 1;
             }
 
-            x1 = _step.currentIV + PredyMath.mulDiv(ivMove, _step.stepAmount, 1e8, true);
+            x1 = _step.currentIV + PredyMath.mulDiv(ivMove, _step.stepAmount, 1e12, true);
             _step.ivMove = ivMove;
         }
 
@@ -774,7 +774,8 @@ library AMMLib {
                 require(_step.currentTick > MIN_TICK, "AMMLib: tick is too small");
                 _step.nextTick = _step.currentTick - 1;
             }
-            _step.currentIV -= PredyMath.mulDiv(_step.stepAmount, ivMove, 1e8, true);
+
+            _step.currentIV -= PredyMath.mulDiv(_step.stepAmount, ivMove, 1e12, true);
             _step.ivMove = ivMove;
         }
         {
@@ -1152,7 +1153,7 @@ library AMMLib {
             // get pool's long position size
             (, uint128 longSize) = _pool.optionVault.getPositionSize(_tickId, _series.seriesId);
 
-            return (longSize, (1e8 * _ivRange) / longSize);
+            return (longSize, (1e12 * _ivRange) / longSize);
         } else {
             uint128 safeMargin = _pool.optionVault.calRequiredMarginForASeries(
                 _series.seriesId,
@@ -1160,11 +1161,12 @@ library AMMLib {
                 IOptionVault.MarginLevel.Safe
             );
             uint128 availableSize = (1e8 * _c) / safeMargin;
-            // ivMove is scaled by 1e8
-            uint128 ivMove = (1e8 * _ivRange) / availableSize;
+
+            // ivMove is scaled by 1e12
+            uint128 ivMove = (1e12 * _ivRange) / availableSize;
 
             ivMove = calIVMove(_pool, ivMove, locked.ivMove, locked.tradeTime);
-            availableSize = (1e8 * _ivRange) / ivMove;
+            availableSize = (1e12 * _ivRange) / ivMove;
 
             return (availableSize, ivMove);
         }
@@ -1193,7 +1195,7 @@ library AMMLib {
             _tickId
         );
 
-        uint128 ivRange = 1e8 * (_iv1 - _iv0);
+        uint128 ivRange = 1e12 * (_iv1 - _iv0);
 
         if (!exists || locked.isLong) {
             // pricePerAmount is estimation price when IV moves from lower to _step.position (price/amount)
@@ -1232,8 +1234,8 @@ library AMMLib {
     ) internal view returns (uint128) {
         uint128 elapsedTime = uint128(block.timestamp) - _lastTradeTime;
 
-        // IV move will decrease 86400 * 500 / 1e8 = 0.432% after 1 day if IVMove-Decrease-Ratio is 500.
-        uint128 decreaseIVMove = (_pool.configs[IVMOVE_DECREASE_RATIO] * elapsedTime) / 100;
+        // IV move will decrease 86400 * 500 * 1e2 / 1e12 = 0.00432% after 1 day if IVMove-Decrease-Ratio is 500.
+        uint128 decreaseIVMove = (_pool.configs[IVMOVE_DECREASE_RATIO] * elapsedTime) * 1e2;
 
         if (_previousIVMove > decreaseIVMove) {
             _previousIVMove -= decreaseIVMove;

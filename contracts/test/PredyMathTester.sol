@@ -16,18 +16,10 @@ contract PredyMathTester {
         return PredyMath.abs(x);
     }
 
-    function testDiv64(
-        uint64 _x,
-        uint64 _d,
-        bool _roundUp
-    ) external pure returns (uint64) {
-        return PredyMath.div64(_x, _d, _roundUp);
-    }
-
     function testMulDiv(
-        uint128 _x,
-        uint128 _y,
-        uint128 _d,
+        uint256 _x,
+        uint256 _y,
+        uint256 _d,
         bool _roundUp
     ) external pure returns (uint128) {
         return PredyMath.mulDiv(_x, _y, _d, _roundUp);
