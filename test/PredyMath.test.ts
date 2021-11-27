@@ -69,26 +69,6 @@ describe('PredyMath', function () {
     })
   })
 
-  describe('div64', () => {
-    it('round down', async () => {
-      const a = scaledBN(1, 6)
-      const b = scaledBN(3, 3)
-
-      const result = await tester.testDiv64(a, b, false)
-
-      expect(result).to.be.eq(333)
-    })
-
-    it('round up', async () => {
-      const a = scaledBN(1, 6)
-      const b = scaledBN(3, 3)
-
-      const result = await tester.testDiv64(a, b, true)
-
-      expect(result).to.be.eq(334)
-    })
-  })
-
   describe('mulDiv', () => {
     it('round down', async () => {
       const x = scaledBN(1, 3)
@@ -108,6 +88,24 @@ describe('PredyMath', function () {
       const result = await tester.testMulDiv(x, y, d, true)
 
       expect(result).to.be.eq(334)
+    })
+
+    it('div large amount and result is less than maxuint128', async () => {
+      const x = BigNumber.from(2).pow(128).sub(1)
+      const y = 100
+      const d = 200
+
+      const result = await tester.testMulDiv(x, y, d, false)
+
+      expect(result).to.be.eq('170141183460469231731687303715884105727')
+    })
+
+    it('div large amount and result is greater than maxuint128', async () => {
+      const x = BigNumber.from(2).pow(128).sub(1)
+      const y = 200
+      const d = 100
+
+      await expect(tester.testMulDiv(x, y, d, false)).to.be.revertedWith("SafeCast: value doesn't fit in 128 bits")
     })
   })
 
@@ -134,6 +132,22 @@ describe('PredyMath', function () {
       const result = await tester.testScale('12345', 6, 6)
 
       expect(result).to.be.eq(12345)
+    })
+  })
+
+  describe('toInt128', () => {
+    it('cast max value of int128', async () => {
+      const n = BigNumber.from(2).pow(127).sub(1)
+
+      const result = await tester.testToInt128(n)
+
+      expect(result).to.be.eq(n)
+    })
+
+    it('reverts if argument is greater than max value of int128', async () => {
+      const n = BigNumber.from(2).pow(127)
+
+      await expect(tester.testToInt128(n)).to.be.revertedWith("SafeCast: value doesn't fit in 128 bits")
     })
   })
 })

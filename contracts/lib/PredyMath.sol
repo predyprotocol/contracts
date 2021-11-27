@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+
 library PredyMath {
     function max(uint128 a, uint128 b) internal pure returns (uint128) {
         return a > b ? a : b;
@@ -14,35 +16,23 @@ library PredyMath {
         return uint128(x >= 0 ? x : -x);
     }
 
-    function div64(
-        uint64 _x,
-        uint64 _d,
-        bool _roundUp
-    ) internal pure returns (uint64) {
-        uint64 tailing;
-        if (_roundUp) {
-            uint64 remainer = _x % _d;
-            if (remainer > 0) {
-                tailing = 1;
-            }
-        }
-        return _x / _d + tailing;
-    }
-
     function mulDiv(
-        uint128 _x,
-        uint128 _y,
-        uint128 _d,
+        uint256 _x,
+        uint256 _y,
+        uint256 _d,
         bool _roundUp
     ) internal pure returns (uint128) {
-        uint128 tailing;
+        uint256 tailing;
         if (_roundUp) {
-            uint128 remainer = (_x * _y) % _d;
+            uint256 remainer = (_x * _y) % _d;
             if (remainer > 0) {
                 tailing = 1;
             }
         }
-        return (_x * _y) / _d + tailing;
+
+        uint256 result = (_x * _y) / _d + tailing;
+
+        return SafeCast.toUint128(result);
     }
 
     function scale(
@@ -57,5 +47,9 @@ library PredyMath {
         } else {
             return _a;
         }
+    }
+
+    function toInt128(uint256 _a) internal pure returns (int128) {
+        return SafeCast.toInt128(SafeCast.toInt256(_a));
     }
 }

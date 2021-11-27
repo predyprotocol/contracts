@@ -14,6 +14,8 @@ import "./PredyMath.sol";
  * @title OptionLib
  */
 library OptionLib {
+    using PredyMath for uint128;
+
     struct TokenContracts {
         // collateral token
         address collateral;
@@ -191,7 +193,7 @@ library OptionLib {
 
         checkOptionSeriesIsLive(_optionInfo.expiries[_expiryId]);
 
-        decreaseCollateral(_optionInfo, vault, _amount);
+        decreaseCollateral(vault, _amount);
 
         checkCollateral(_optionInfo, _accountId, _expiryId, _spot);
     }
@@ -220,7 +222,7 @@ library OptionLib {
             )) / _cRatio;
 
         if (collateralValue > requiredCollateral) {
-            return decreaseCollateral(_optionInfo, vault, collateralValue - requiredCollateral);
+            return decreaseCollateral(vault, collateralValue - requiredCollateral);
         } else {
             return 0;
         }
@@ -363,7 +365,7 @@ library OptionLib {
             reward = collateralValue - maintenanceMargin;
         }
 
-        return decreaseCollateral(_optionInfo, vault, reward);
+        return decreaseCollateral(vault, reward);
     }
 
     /**
@@ -420,7 +422,7 @@ library OptionLib {
 
         updateExpiredCount(_optionInfo, _expiryId);
 
-        decreaseCollateral(_optionInfo, vault, payout);
+        decreaseCollateral(vault, payout);
 
         settledAmount = vault.collateral;
     }
@@ -491,7 +493,7 @@ library OptionLib {
 
         require(vault.collateral >= uint128(_collateralAmount), "OptionLib: no enough collateral");
 
-        decreaseCollateral(_optionInfo, vault, uint128(_collateralAmount));
+        decreaseCollateral(vault, uint128(_collateralAmount));
 
         IERC20(_optionInfo.tokens.collateral).transfer(msg.sender, _collateralAmount);
 
@@ -756,7 +758,7 @@ library OptionLib {
         for (uint256 j = 0; j < expiration.seriesIds.length; j++) {
             uint256 seriesId = expiration.seriesIds[j];
 
-            int128 position = int128(vault.longs[seriesId]) - int128(vault.shorts[seriesId]);
+            int128 position = vault.longs[seriesId].toInt128() - vault.shorts[seriesId].toInt128();
             tickDelta += calculateDelta(sqrtMaturity, _optionInfo.serieses[seriesId], position, _spot);
         }
         return tickDelta;
@@ -770,11 +772,7 @@ library OptionLib {
         _vault.collateral += _amount;
     }
 
-    function decreaseCollateral(
-        OptionInfo storage _optionInfo,
-        IOptionVault.Vault storage _vault,
-        uint128 _amount
-    ) internal returns (uint128) {
+    function decreaseCollateral(IOptionVault.Vault storage _vault, uint128 _amount) internal returns (uint128) {
         if (_vault.collateral >= _amount) {
             _vault.collateral -= _amount;
             return _amount;
@@ -797,7 +795,7 @@ library OptionLib {
         IOptionVault.Account storage account = _optionInfo.accounts[_accountId];
         IOptionVault.Vault storage vault = account.vaults[_expiryId];
 
-        int256 hedgedValue = int128(vault.shortLiquidity) + (int128(_spot) * vault.hedgePosition) / 1e10;
+        int256 hedgedValue = vault.shortLiquidity.toInt128() + (_spot.toInt128() * vault.hedgePosition) / 1e10;
 
         return uint128(uint256(hedgedValue)) + vault.collateral;
     }
@@ -837,13 +835,13 @@ library OptionLib {
             if (_marginLevel == IOptionVault.MarginLevel.Safe) {
                 requiredMargin += calMargin(
                     _optionInfo,
-                    int128(shortAmount) - int128(longAmount),
+                    shortAmount.toInt128() - longAmount.toInt128(),
                     _spot,
                     seriesParams,
                     _marginLevel
                 );
             } else {
-                requiredMargin += calMargin(_optionInfo, int128(shortAmount), _spot, seriesParams, _marginLevel);
+                requiredMargin += calMargin(_optionInfo, shortAmount.toInt128(), _spot, seriesParams, _marginLevel);
             }
         }
     }
@@ -960,7 +958,7 @@ library OptionLib {
             _expiryId,
             _seriesId,
             _spot,
-            int128(_amount),
+            _amount.toInt128(),
             _isPool ? IOptionVault.MarginLevel.Safe : IOptionVault.MarginLevel.Initial
         );
 
@@ -1105,7 +1103,7 @@ library OptionLib {
 
         require(vault.collateral >= depositCollateral, "OptionLib: no enough collateral");
 
-        depositCollateral = decreaseCollateral(_optionInfo, vault, depositCollateral);
+        depositCollateral = decreaseCollateral(vault, depositCollateral);
         vault.shortLiquidity += depositCollateral;
         _optionInfo.totalDepositedToLendingPool += depositCollateral;
     }
