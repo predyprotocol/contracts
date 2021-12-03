@@ -20,8 +20,9 @@ describe('priceChanges', function () {
   let testContractSet: TestContractSet
   let testContractHelper: TestContractHelper
   let snapshotId: number
-  let beforeFeePoolBalance: BigNumber
+
   const initialSpot = scaledBN(1000, 8)
+  const DEVIATION_THRESHOLD = scaledBN(1, 6)
 
   before(async () => {
     ;[wallet, other] = await (ethers as any).getSigners()
@@ -46,8 +47,6 @@ describe('priceChanges', function () {
     await usdc.mint(other.address, testUsdcAmount)
 
     await testContractHelper.updateSpot(initialSpot)
-
-    beforeFeePoolBalance = await usdc.balanceOf(testContractSet.usdcFeePool.address)
   })
 
   afterEach(async () => {
@@ -83,13 +82,16 @@ describe('priceChanges', function () {
       const amount = scaledBN(1, 8)
       const maxFee = scaledBN(2000, 6)
       const minFee = scaledBN(0, 6)
+      const price = scaledBN(1001, 8)
 
-      await testContractHelper.updateSpot(scaledBN(1001, 8))
+      await testContractHelper.updateSpot(price)
 
       await usdc.approve(amm.address, maxFee)
       const premium1 = await testContractHelper.buy(seriesId1, amount, maxFee)
 
-      await testContractHelper.updateSpot(scaledBN(1020, 8))
+      const priceChange = price.mul(DEVIATION_THRESHOLD).div(scaledBN(1, 8))
+
+      await testContractHelper.updateSpot(price.add(priceChange))
 
       const premium2 = await testContractHelper.sell(seriesId1, amount, minFee, wallet)
 
@@ -101,13 +103,15 @@ describe('priceChanges', function () {
       const amount = scaledBN(1, 8)
       const maxFee = scaledBN(2000, 6)
       const minFee = scaledBN(0, 6)
+      const price = scaledBN(1001, 8)
 
-      await testContractHelper.updateSpot(scaledBN(1001, 8))
+      await testContractHelper.updateSpot(price)
 
       await usdc.approve(amm.address, maxFee)
       const premium1 = await testContractHelper.buy(seriesId1, amount, maxFee)
 
-      await testContractHelper.updateSpot(scaledBN(1020, 8))
+      const priceChange = price.mul(DEVIATION_THRESHOLD).div(scaledBN(1, 8))
+      await testContractHelper.updateSpot(price.add(priceChange))
 
       // 10 minutes passed
       await increaseTime(60 * 10)
@@ -147,8 +151,9 @@ describe('priceChanges', function () {
     it('buy premium is greater than sell premium if oracle price change largely', async () => {
       const amount = scaledBN(1, 8)
       const maxFee = scaledBN(2000, 6)
+      const price = scaledBN(1020, 8)
 
-      await testContractHelper.updateSpot(scaledBN(1020, 8))
+      await testContractHelper.updateSpot(price)
 
       const vaultId = await testContractHelper.createAccount(wallet)
       const collateral = scaledBN(2000, 6)
@@ -162,7 +167,8 @@ describe('priceChanges', function () {
         wallet,
       )
 
-      await testContractHelper.updateSpot(scaledBN(1002, 8))
+      const priceChange = price.mul(DEVIATION_THRESHOLD).div(scaledBN(1, 8))
+      await testContractHelper.updateSpot(price.sub(priceChange))
 
       await usdc.approve(amm.address, maxFee)
       const premium2 = await testContractHelper.buy(seriesId1, amount, maxFee)
@@ -174,8 +180,9 @@ describe('priceChanges', function () {
     it('price affected after safety period', async () => {
       const amount = scaledBN(1, 8)
       const maxFee = scaledBN(2000, 6)
+      const price = scaledBN(1020, 8)
 
-      await testContractHelper.updateSpot(scaledBN(1020, 8))
+      await testContractHelper.updateSpot(price)
 
       const vaultId = await testContractHelper.createAccount(wallet)
       const collateral = scaledBN(2000, 6)
@@ -189,9 +196,10 @@ describe('priceChanges', function () {
         wallet,
       )
 
-      await increaseTime(60 * 10)
+      const priceChange = price.mul(DEVIATION_THRESHOLD).div(scaledBN(1, 8))
+      await testContractHelper.updateSpot(price.sub(priceChange))
 
-      await testContractHelper.updateSpot(scaledBN(1002, 8))
+      await increaseTime(60 * 10)
 
       await usdc.approve(amm.address, maxFee)
       const premium2 = await testContractHelper.buy(seriesId1, amount, maxFee)

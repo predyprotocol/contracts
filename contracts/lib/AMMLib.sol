@@ -27,6 +27,7 @@ library AMMLib {
     /// @dev maximum value of tick
     uint32 constant MAX_TICK = 30;
 
+    /// @dev the maximum interval of trading at which the protocol recalculates the premium.
     uint256 constant SAFETY_PERIOD = 6 minutes;
 
     /**
@@ -59,9 +60,10 @@ library AMMLib {
         uint32 tickId;
         //
         bool isLong;
-        // last price per size scaled by 1e12
+        // the price per size in last trade recorded per series.
+        // scaled by 1e12
         uint128 lastPricePerSize;
-        // last trade time
+        // the timestamp of last trade recorded per series.
         uint128 tradeTime;
     }
 
@@ -795,6 +797,10 @@ library AMMLib {
         return (totalPremium, false);
     }
 
+    /**
+     * @notice check lastPricePerSize to avoid sandwich attack.
+     * compare lastPricePerSize and current pricePerSize, and re-calculate premium if needed.
+     */
     function checkPricePerSize(
         PoolInfo storage _pool,
         TradeState memory _step,
@@ -870,7 +876,7 @@ library AMMLib {
             if (locked.tickId == tickId) {
                 require(locked.isLong);
 
-                // update iv move
+                // update the last price per size
                 locked.tradeTime = uint128(block.timestamp);
                 locked.lastPricePerSize = _step.pricePerSize;
                 return;
@@ -939,7 +945,7 @@ library AMMLib {
             if (locked.tickId == tickId) {
                 require(locked.isLong);
 
-                // update iv move
+                // update the last price per size
                 locked.tradeTime = uint128(block.timestamp);
                 locked.lastPricePerSize = _step.pricePerSize;
                 return;
@@ -996,7 +1002,7 @@ library AMMLib {
             if (locked.tickId == tickId) {
                 require(!locked.isLong);
 
-                // update iv move
+                // update the last price per size
                 locked.tradeTime = uint128(block.timestamp);
                 locked.lastPricePerSize = _step.pricePerSize;
                 return;
@@ -1061,7 +1067,7 @@ library AMMLib {
             if (locked.tickId == tickId) {
                 require(!locked.isLong);
 
-                // update iv move
+                // update the last price per size
                 locked.tradeTime = uint128(block.timestamp);
                 locked.lastPricePerSize = _step.pricePerSize;
                 return;
