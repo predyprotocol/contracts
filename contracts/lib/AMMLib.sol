@@ -7,6 +7,7 @@ import "../interfaces/IHedge.sol";
 import "../interfaces/IOptionVault.sol";
 import "./PredyMath.sol";
 import "./OptionLib.sol";
+import "hardhat/console.sol";
 
 /**
  * @title AMMLib
@@ -26,6 +27,8 @@ library AMMLib {
 
     /// @dev maximum value of tick
     uint32 constant MAX_TICK = 30;
+
+    uint256 constant SAFETY_PERIOD = 6 minutes;
 
     /**
      * @notice tick is a section of IV
@@ -59,6 +62,8 @@ library AMMLib {
         bool isLong;
         // last iv move scaled by 1e12
         uint128 ivMove;
+        // last price per size
+        uint128 lastPricePerSize;
         // last trade time
         uint128 tradeTime;
     }
@@ -102,6 +107,7 @@ library AMMLib {
         address trader;
         bool isTickLong;
         uint128 ivMove;
+        uint128 pricePerSize;
     }
 
     /// @dev reservation for withdrawal
@@ -678,6 +684,9 @@ library AMMLib {
         premium = (premium * _step.stepAmount) / 1e10;
 
         _step.currentIV = x1;
+        _step.pricePerSize = (1e12 * (premium + fee)) / _step.stepAmount;
+
+        premium = checkPricePerSize(_pool, _step, _series.seriesId, false, premium + fee) - fee;
 
         return (premium, fee, false);
     }
@@ -729,6 +738,7 @@ library AMMLib {
         TradeState memory _step
     ) internal view returns (uint128 totalPremium, bool) {
         _step.isTickLong = getIsTickLongFlag(_pool, _series.seriesId, _step.currentTick, true);
+
         Tick memory state = _pool.ticks[_step.currentTick];
         uint128 lower = tick2pos(_step.currentTick);
 
@@ -785,7 +795,42 @@ library AMMLib {
 
             totalPremium += premium;
         }
+
+        _step.pricePerSize = (1e12 * totalPremium) / _step.stepAmount;
+
+        totalPremium = checkPricePerSize(_pool, _step, _series.seriesId, true, totalPremium);
+
         return (totalPremium, false);
+    }
+
+    function checkPricePerSize(
+        PoolInfo storage _pool,
+        TradeState memory _step,
+        uint256 _seriesId,
+        bool _isSelling,
+        uint128 _price
+    ) internal view returns (uint128 _priceAfter) {
+        _priceAfter = _price;
+
+        (LockedOptionStatePerTick memory locked, ) = getLockedOptionStatePerTick(_pool, _seriesId, _step.currentTick);
+
+        if (locked.lastPricePerSize == 0) {
+            return _price;
+        }
+
+        if (locked.tradeTime + SAFETY_PERIOD > block.timestamp) {
+            if (_isSelling) {
+                // sell premium must be less than last buy's
+                if (_step.pricePerSize > locked.lastPricePerSize) {
+                    _priceAfter = (locked.lastPricePerSize * _step.stepAmount) / 1e12;
+                }
+            } else {
+                // buy premium must be greater than last sell's
+                if (_step.pricePerSize < locked.lastPricePerSize) {
+                    _priceAfter = (locked.lastPricePerSize * _step.stepAmount) / 1e12;
+                }
+            }
+        }
     }
 
     /**
@@ -836,12 +881,15 @@ library AMMLib {
                 // update iv move
                 locked.ivMove = _step.ivMove;
                 locked.tradeTime = uint128(block.timestamp);
+                locked.lastPricePerSize = _step.pricePerSize;
                 return;
             }
         }
 
         // if there is no state, add new
-        _pool.locked[_seriesId].push(LockedOptionStatePerTick(tickId, true, 0, 0));
+        _pool.locked[_seriesId].push(
+            LockedOptionStatePerTick(tickId, true, _step.ivMove, _step.pricePerSize, uint128(block.timestamp))
+        );
     }
 
     /**
@@ -903,6 +951,7 @@ library AMMLib {
                 // update iv move
                 locked.ivMove = _step.ivMove;
                 locked.tradeTime = uint128(block.timestamp);
+                locked.lastPricePerSize = _step.pricePerSize;
                 return;
             }
         }
@@ -960,12 +1009,15 @@ library AMMLib {
                 // update iv move
                 locked.ivMove = _step.ivMove;
                 locked.tradeTime = uint128(block.timestamp);
+                locked.lastPricePerSize = _step.pricePerSize;
                 return;
             }
         }
 
         // if there is no series state, create new
-        _pool.locked[_series.seriesId].push(LockedOptionStatePerTick(tickId, false, _step.ivMove, 0));
+        _pool.locked[_series.seriesId].push(
+            LockedOptionStatePerTick(tickId, false, _step.ivMove, _step.pricePerSize, uint128(block.timestamp))
+        );
     }
 
     /**
@@ -1023,6 +1075,7 @@ library AMMLib {
                 // update iv move
                 locked.ivMove = _step.ivMove;
                 locked.tradeTime = uint128(block.timestamp);
+                locked.lastPricePerSize = _step.pricePerSize;
                 return;
             }
         }
@@ -1124,7 +1177,7 @@ library AMMLib {
         uint128 currentIV = _iv;
         uint32 tick = uint32(currentIV / 1e7);
 
-        return TradeState(tick, tick, 0, _amount, currentIV, _trader, false, 0);
+        return TradeState(tick, tick, 0, _amount, currentIV, _trader, false, 0, 0);
     }
 
     function getIsTickLongFlag(
@@ -1293,7 +1346,7 @@ library AMMLib {
             }
         }
 
-        return (LockedOptionStatePerTick(0, false, 0, 0), false);
+        return (LockedOptionStatePerTick(0, false, 0, 0, 0), false);
     }
 
     /**
