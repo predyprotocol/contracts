@@ -234,7 +234,7 @@ describe('gas', function () {
     const tx = await amm.sell(seriesId, amount, minFee)
     const receipt = await tx.wait()
 
-    expect(receipt.gasUsed).to.be.lt(840000)
+    expect(receipt.gasUsed).to.be.lt(860000)
   })
 
   it('gas usage of makeShortPosition [ @skip-on-coverage ]', async () => {
