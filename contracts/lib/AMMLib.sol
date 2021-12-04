@@ -816,17 +816,20 @@ library AMMLib {
             return _price;
         }
 
-        if (locked.tradeTime + SAFETY_PERIOD > block.timestamp) {
-            if (_isSelling) {
-                // sell premium must be less than last buy's
-                if (_step.pricePerSize > locked.lastPricePerSize) {
-                    _priceAfter = (locked.lastPricePerSize * _step.stepAmount) / 1e12;
-                }
-            } else {
-                // buy premium must be greater than last sell's
-                if (_step.pricePerSize < locked.lastPricePerSize) {
-                    _priceAfter = (locked.lastPricePerSize * _step.stepAmount) / 1e12;
-                }
+        // premium never re-calculated after SAFETY_PERIOD
+        if (locked.tradeTime + SAFETY_PERIOD <= block.timestamp) {
+            return _price;
+        }
+
+        if (_isSelling) {
+            // sell premium must be less than last buy's
+            if (_step.pricePerSize > locked.lastPricePerSize) {
+                _priceAfter = (locked.lastPricePerSize * _step.stepAmount) / 1e12;
+            }
+        } else {
+            // buy premium must be greater than last sell's
+            if (_step.pricePerSize < locked.lastPricePerSize) {
+                _priceAfter = (locked.lastPricePerSize * _step.stepAmount) / 1e12;
             }
         }
     }
