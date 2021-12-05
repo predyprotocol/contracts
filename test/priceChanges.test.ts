@@ -11,7 +11,7 @@ import {
   TestContractSet,
 } from './utils/deploy'
 
-describe('ivmove', function () {
+describe('priceChanges', function () {
   let wallet: Wallet, other: Wallet
   let weth: MockERC20
   let usdc: MockERC20
@@ -20,33 +20,9 @@ describe('ivmove', function () {
   let testContractSet: TestContractSet
   let testContractHelper: TestContractHelper
   let snapshotId: number
-  let beforeFeePoolBalance: BigNumber
+
   const initialSpot = scaledBN(1000, 8)
-
-  /**
-   * check the constraint of tick balance
-   * constraint: sum of tick balance == balance of AMM contract
-   * @param lowerTick
-   * @param upperTick
-   */
-  async function checkTickBalanceIsValid(lowerTick: number, upperTick: number) {
-    const ticks = await amm.getTicks(lowerTick, upperTick)
-
-    const balance = await usdc.balanceOf(amm.address)
-    const totalBalance = ticks.reduce((acc, i) => i.balance.add(acc), BigNumber.from(0))
-
-    const lives = await optionVault.getLiveOptionSerieses()
-
-    let cumulativeFee = BigNumber.from(0)
-
-    for (let i = lowerTick; i < upperTick; i++) {
-      for (let s of lives) {
-        let profitState = await amm.getProfitState(i, s.expiryId)
-        cumulativeFee = cumulativeFee.add(profitState.cumulativeFee)
-      }
-    }
-    expect(totalBalance.add(cumulativeFee), 'sum of balance eq to contract balance').to.be.eq(balance)
-  }
+  const DEVIATION_THRESHOLD = scaledBN(1, 6)
 
   before(async () => {
     ;[wallet, other] = await (ethers as any).getSigners()
@@ -71,14 +47,9 @@ describe('ivmove', function () {
     await usdc.mint(other.address, testUsdcAmount)
 
     await testContractHelper.updateSpot(initialSpot)
-
-    beforeFeePoolBalance = await usdc.balanceOf(testContractSet.usdcFeePool.address)
   })
 
   afterEach(async () => {
-    // check tick state
-    await checkTickBalanceIsValid(5, 20)
-
     await restoreSnapshot(snapshotId)
   })
 
@@ -107,52 +78,48 @@ describe('ivmove', function () {
       await amm.deposit(depositAmount, depositAmount, lower, upper)
     })
 
-    it('sell premium is less than buy premium if large amount is unlocked', async () => {
+    it('sell premium is less than buy premium if oracle price changes largely', async () => {
       const amount = scaledBN(1, 8)
       const maxFee = scaledBN(2000, 6)
       const minFee = scaledBN(0, 6)
+      const price = scaledBN(1001, 8)
 
-      await testContractHelper.updateSpot(scaledBN(1665, 8))
+      await testContractHelper.updateSpot(price)
 
       await usdc.approve(amm.address, maxFee)
-      await testContractHelper.buy(seriesId1, amount, maxFee)
+      const premium1 = await testContractHelper.buy(seriesId1, amount, maxFee)
 
-      await increaseTime(60 * 60 * 2)
+      const priceChange = price.mul(DEVIATION_THRESHOLD).div(scaledBN(1, 8))
 
-      await testContractHelper.updateSpot(scaledBN(950, 8))
+      await testContractHelper.updateSpot(price.add(priceChange))
 
-      const premium1 = await testContractHelper.sell(seriesId1, amount, minFee, wallet)
-
-      const premium2 = await testContractHelper.buy(seriesId1, amount, maxFee)
+      const premium2 = await testContractHelper.sell(seriesId1, amount, minFee, wallet)
 
       // assertions
-      expect(premium1).to.be.lte(premium2)
+      expect(premium1).to.be.gte(premium2)
     })
 
-    it('sell premium is less than buy premium if large amount is deposited', async () => {
+    it('price affected after safety period', async () => {
       const amount = scaledBN(1, 8)
       const maxFee = scaledBN(2000, 6)
       const minFee = scaledBN(0, 6)
+      const price = scaledBN(1001, 8)
 
-      await testContractHelper.updateSpot(scaledBN(1000, 8))
-
-      await usdc.approve(amm.address, maxFee)
-      await testContractHelper.buy(seriesId1, amount, maxFee)
-
-      await increaseTime(60 * 60 * 2)
-
-      const premium1 = await testContractHelper.sell(seriesId1, amount, minFee, wallet)
-
-      const depositAmount = scaledBN(50000, 6)
-      await usdc.approve(amm.address, depositAmount)
-      await amm.deposit(depositAmount, depositAmount, 10, 11)
+      await testContractHelper.updateSpot(price)
 
       await usdc.approve(amm.address, maxFee)
-      await testContractHelper.buy(seriesId1, scaledBN(1, 1), maxFee)
-      const premium2 = await testContractHelper.buy(seriesId1, amount, maxFee)
+      const premium1 = await testContractHelper.buy(seriesId1, amount, maxFee)
+
+      const priceChange = price.mul(DEVIATION_THRESHOLD).div(scaledBN(1, 8))
+      await testContractHelper.updateSpot(price.add(priceChange))
+
+      // 10 minutes passed
+      await increaseTime(60 * 10)
+
+      const premium2 = await testContractHelper.sell(seriesId1, amount, minFee, wallet)
 
       // assertions
-      expect(premium1).to.be.lte(premium2)
+      expect(premium1).to.be.lt(premium2)
     })
   })
 
@@ -181,54 +148,61 @@ describe('ivmove', function () {
       await amm.deposit(depositAmount, depositAmount, lower, upper)
     })
 
-    it('buy premium is greater than sell premium if large amount is unlocked', async () => {
+    it('buy premium is greater than sell premium if oracle price change largely', async () => {
       const amount = scaledBN(1, 8)
       const maxFee = scaledBN(2000, 6)
-      const minFee = scaledBN(0, 6)
+      const price = scaledBN(1020, 8)
 
-      await testContractHelper.updateSpot(scaledBN(1665, 8))
+      await testContractHelper.updateSpot(price)
 
       const vaultId = await testContractHelper.createAccount(wallet)
       const collateral = scaledBN(2000, 6)
 
-      await testContractHelper.makeShortPosition(vaultId, expiryId, seriesId1, amount, collateral, wallet)
+      const premium1 = await testContractHelper.makeShortPosition(
+        vaultId,
+        expiryId,
+        seriesId1,
+        amount,
+        collateral,
+        wallet,
+      )
 
-      await increaseTime(60 * 60 * 2)
-
-      await testContractHelper.updateSpot(scaledBN(950, 8))
+      const priceChange = price.mul(DEVIATION_THRESHOLD).div(scaledBN(1, 8))
+      await testContractHelper.updateSpot(price.sub(priceChange))
 
       await usdc.approve(amm.address, maxFee)
-      const premium1 = await testContractHelper.buy(seriesId1, amount, maxFee)
-
-      const premium2 = await testContractHelper.sell(seriesId1, amount, minFee, wallet)
+      const premium2 = await testContractHelper.buy(seriesId1, amount, maxFee)
 
       // assertions
-      expect(premium1).to.be.gte(premium2)
+      expect(premium1).to.be.lte(premium2)
     })
 
-    it('buy premium is greater than sell premium if large amount is deposited', async () => {
+    it('price affected after safety period', async () => {
       const amount = scaledBN(1, 8)
       const maxFee = scaledBN(2000, 6)
-      const minFee = scaledBN(0, 6)
+      const price = scaledBN(1020, 8)
 
-      await testContractHelper.updateSpot(scaledBN(1000, 8))
+      await testContractHelper.updateSpot(price)
 
       const vaultId = await testContractHelper.createAccount(wallet)
-      const collateral = scaledBN(1000, 6)
+      const collateral = scaledBN(2000, 6)
 
-      await testContractHelper.makeShortPosition(vaultId, expiryId, seriesId1, amount, collateral, wallet)
+      const premium1 = await testContractHelper.makeShortPosition(
+        vaultId,
+        expiryId,
+        seriesId1,
+        amount,
+        collateral,
+        wallet,
+      )
 
-      await increaseTime(60 * 60 * 2)
+      const priceChange = price.mul(DEVIATION_THRESHOLD).div(scaledBN(1, 8))
+      await testContractHelper.updateSpot(price.sub(priceChange))
 
-      const depositAmount = scaledBN(50000, 6)
-      await usdc.approve(amm.address, depositAmount)
-      await amm.deposit(depositAmount, depositAmount, 9, 10)
+      await increaseTime(60 * 10)
 
       await usdc.approve(amm.address, maxFee)
-      const premium1 = await testContractHelper.buy(seriesId1, amount, maxFee)
-
-      await testContractHelper.sell(seriesId1, scaledBN(1, 1), minFee, wallet)
-      const premium2 = await testContractHelper.sell(seriesId1, amount.sub(scaledBN(1, 1)), minFee, wallet)
+      const premium2 = await testContractHelper.buy(seriesId1, amount, maxFee)
 
       // assertions
       expect(premium1).to.be.gte(premium2)

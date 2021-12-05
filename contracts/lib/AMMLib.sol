@@ -27,6 +27,9 @@ library AMMLib {
     /// @dev maximum value of tick
     uint32 constant MAX_TICK = 30;
 
+    /// @dev the maximum interval of trading at which the protocol recalculates the premium.
+    uint256 constant SAFETY_PERIOD = 6 minutes;
+
     /**
      * @notice tick is a section of IV
      *   Tick has information about the status of the funds
@@ -57,9 +60,10 @@ library AMMLib {
         uint32 tickId;
         //
         bool isLong;
-        // last iv move scaled by 1e12
-        uint128 ivMove;
-        // last trade time
+        // the price per size in last trade recorded per series.
+        // scaled by 1e12
+        uint128 lastPricePerSize;
+        // the timestamp of last trade recorded per series.
         uint128 tradeTime;
     }
 
@@ -101,7 +105,7 @@ library AMMLib {
         uint128 currentIV;
         address trader;
         bool isTickLong;
-        uint128 ivMove;
+        uint128 pricePerSize;
     }
 
     /// @dev reservation for withdrawal
@@ -111,7 +115,6 @@ library AMMLib {
     }
 
     uint8 public constant PROTOCOL_FEE_RATIO = 1;
-    uint8 public constant IVMOVE_DECREASE_RATIO = 2;
     uint8 public constant MIN_DELTA = 3;
     uint8 public constant BASE_SPREAD = 4;
 
@@ -132,7 +135,6 @@ library AMMLib {
         _pool.optionVault = IOptionVault(_optionVault);
 
         _pool.configs[PROTOCOL_FEE_RATIO] = 10;
-        _pool.configs[IVMOVE_DECREASE_RATIO] = 500;
         _pool.configs[MIN_DELTA] = 5 * 1e6;
         // 1 / 500 = 0.2%
         _pool.configs[BASE_SPREAD] = 500;
@@ -670,7 +672,6 @@ library AMMLib {
             }
 
             x1 = _step.currentIV + PredyMath.mulDiv(ivMove, _step.stepAmount, 1e12, true);
-            _step.ivMove = ivMove;
         }
 
         premium = calculatePrice(_pool, _spotPrice, _series, _step.currentIV, x1);
@@ -678,6 +679,9 @@ library AMMLib {
         premium = (premium * _step.stepAmount) / 1e10;
 
         _step.currentIV = x1;
+        _step.pricePerSize = (1e12 * (premium + fee)) / _step.stepAmount;
+
+        premium = checkPricePerSize(_pool, _step, _series.seriesId, false, premium + fee) - fee;
 
         return (premium, fee, false);
     }
@@ -729,6 +733,7 @@ library AMMLib {
         TradeState memory _step
     ) internal view returns (uint128 totalPremium, bool) {
         _step.isTickLong = getIsTickLongFlag(_pool, _series.seriesId, _step.currentTick, true);
+
         Tick memory state = _pool.ticks[_step.currentTick];
         uint128 lower = tick2pos(_step.currentTick);
 
@@ -777,7 +782,6 @@ library AMMLib {
             }
 
             _step.currentIV -= PredyMath.mulDiv(_step.stepAmount, ivMove, 1e12, true);
-            _step.ivMove = ivMove;
         }
         {
             uint128 premium = calculatePrice(_pool, _spotPrice, _series, _step.currentIV, x1);
@@ -785,7 +789,49 @@ library AMMLib {
 
             totalPremium += premium;
         }
+
+        _step.pricePerSize = (1e12 * totalPremium) / _step.stepAmount;
+
+        totalPremium = checkPricePerSize(_pool, _step, _series.seriesId, true, totalPremium);
+
         return (totalPremium, false);
+    }
+
+    /**
+     * @notice check lastPricePerSize to avoid sandwich attack.
+     * compare lastPricePerSize and current pricePerSize, and re-calculate premium if needed.
+     */
+    function checkPricePerSize(
+        PoolInfo storage _pool,
+        TradeState memory _step,
+        uint256 _seriesId,
+        bool _isSelling,
+        uint128 _price
+    ) internal view returns (uint128 _priceAfter) {
+        _priceAfter = _price;
+
+        (LockedOptionStatePerTick memory locked, ) = getLockedOptionStatePerTick(_pool, _seriesId, _step.currentTick);
+
+        if (locked.lastPricePerSize == 0) {
+            return _price;
+        }
+
+        // premium never re-calculated after SAFETY_PERIOD
+        if (locked.tradeTime + SAFETY_PERIOD <= block.timestamp) {
+            return _price;
+        }
+
+        if (_isSelling) {
+            // sell premium must be less than last buy's
+            if (_step.pricePerSize > locked.lastPricePerSize) {
+                _priceAfter = (locked.lastPricePerSize * _step.stepAmount) / 1e12;
+            }
+        } else {
+            // buy premium must be greater than last sell's
+            if (_step.pricePerSize < locked.lastPricePerSize) {
+                _priceAfter = (locked.lastPricePerSize * _step.stepAmount) / 1e12;
+            }
+        }
     }
 
     /**
@@ -833,15 +879,17 @@ library AMMLib {
             if (locked.tickId == tickId) {
                 require(locked.isLong);
 
-                // update iv move
-                locked.ivMove = _step.ivMove;
+                // update the last price per size
                 locked.tradeTime = uint128(block.timestamp);
+                locked.lastPricePerSize = _step.pricePerSize;
                 return;
             }
         }
 
         // if there is no state, add new
-        _pool.locked[_seriesId].push(LockedOptionStatePerTick(tickId, true, 0, 0));
+        _pool.locked[_seriesId].push(
+            LockedOptionStatePerTick(tickId, true, _step.pricePerSize, uint128(block.timestamp))
+        );
     }
 
     /**
@@ -900,9 +948,9 @@ library AMMLib {
             if (locked.tickId == tickId) {
                 require(locked.isLong);
 
-                // update iv move
-                locked.ivMove = _step.ivMove;
+                // update the last price per size
                 locked.tradeTime = uint128(block.timestamp);
+                locked.lastPricePerSize = _step.pricePerSize;
                 return;
             }
         }
@@ -957,15 +1005,17 @@ library AMMLib {
             if (locked.tickId == tickId) {
                 require(!locked.isLong);
 
-                // update iv move
-                locked.ivMove = _step.ivMove;
+                // update the last price per size
                 locked.tradeTime = uint128(block.timestamp);
+                locked.lastPricePerSize = _step.pricePerSize;
                 return;
             }
         }
 
         // if there is no series state, create new
-        _pool.locked[_series.seriesId].push(LockedOptionStatePerTick(tickId, false, _step.ivMove, 0));
+        _pool.locked[_series.seriesId].push(
+            LockedOptionStatePerTick(tickId, false, _step.pricePerSize, uint128(block.timestamp))
+        );
     }
 
     /**
@@ -1020,9 +1070,9 @@ library AMMLib {
             if (locked.tickId == tickId) {
                 require(!locked.isLong);
 
-                // update iv move
-                locked.ivMove = _step.ivMove;
+                // update the last price per size
                 locked.tradeTime = uint128(block.timestamp);
+                locked.lastPricePerSize = _step.pricePerSize;
                 return;
             }
         }
@@ -1174,9 +1224,6 @@ library AMMLib {
             // ivMove is scaled by 1e12
             uint128 ivMove = (1e12 * _ivRange) / availableSize;
 
-            ivMove = calIVMove(_pool, ivMove, locked.ivMove, locked.tradeTime);
-            availableSize = (1e12 * _ivRange) / ivMove;
-
             return (availableSize, ivMove);
         }
     }
@@ -1220,8 +1267,7 @@ library AMMLib {
                 availableSize = (_c * 1e10) / (pricePerAmount + 1e2 * safeMargin);
             }
 
-            uint128 ivMove = calIVMove(_pool, ivRange / availableSize, locked.ivMove, locked.tradeTime);
-            availableSize = ivRange / ivMove;
+            uint128 ivMove = ivRange / availableSize;
 
             return (availableSize, ivMove);
         } else {
@@ -1229,34 +1275,6 @@ library AMMLib {
             uint128 availableSize = getVaultSize(_pool, _tickId, _series.seriesId);
             return (availableSize, ivRange / availableSize);
         }
-    }
-
-    /**
-     * @notice calculate IV move
-     * The change of IV move should not be big to avoid a risk-free attack with successive buys and sells.
-     */
-    function calIVMove(
-        PoolInfo storage _pool,
-        uint128 _ivMove,
-        uint128 _previousIVMove,
-        uint128 _lastTradeTime
-    ) internal view returns (uint128) {
-        uint128 elapsedTime = uint128(block.timestamp) - _lastTradeTime;
-
-        // IV move will decrease 86400 * 500 * 1e2 / 1e12 = 0.00432 = 0.432% after 1 day if IVMove-Decrease-Ratio is 500.
-        uint128 decreaseIVMove = (_pool.configs[IVMOVE_DECREASE_RATIO] * elapsedTime) * 1e2;
-
-        if (_previousIVMove > decreaseIVMove) {
-            _previousIVMove -= decreaseIVMove;
-        } else {
-            _previousIVMove = 0;
-        }
-
-        if (_ivMove < _previousIVMove) {
-            _ivMove = _previousIVMove;
-        }
-
-        return _ivMove;
     }
 
     function getVaultSize(

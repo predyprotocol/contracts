@@ -990,17 +990,18 @@ describe('AMM', function () {
       // deposit usdc to the vault
       await usdc.connect(other).approve(optionVault.address, collateral)
       await optionVault.connect(other).deposit(vaultId, expiryId, collateral)
-      await optionVault.connect(other).write(vaultId, seriesId, shortAmount, other.address)
+      await optionVault.connect(other).write(vaultId, seriesId, shortAmount.mul(2), other.address)
 
       // sell options
       const minFee = 0
-      await optionVault.connect(other).setApprovalForAll(amm.address, true)
 
       const before = await usdc.balanceOf(other.address)
       await amm.connect(other).sell(seriesId, shortAmount, minFee)
       const after = await usdc.balanceOf(other.address)
 
       expect(after.sub(before)).to.be.gt(0)
+
+      await amm.connect(other).sell(seriesId, shortAmount, minFee)
     })
 
     it('sell options within a long tick', async () => {
