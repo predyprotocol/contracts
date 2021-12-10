@@ -825,11 +825,13 @@ library AMMLib {
             // sell premium must be less than last buy's
             if (_step.pricePerSize > locked.lastPricePerSize) {
                 _priceAfter = (locked.lastPricePerSize * _step.stepAmount) / 1e12;
+                _step.pricePerSize = locked.lastPricePerSize;
             }
         } else {
             // buy premium must be greater than last sell's
             if (_step.pricePerSize < locked.lastPricePerSize) {
                 _priceAfter = (locked.lastPricePerSize * _step.stepAmount) / 1e12;
+                _step.pricePerSize = locked.lastPricePerSize;
             }
         }
     }

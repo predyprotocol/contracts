@@ -99,6 +99,28 @@ describe('priceChanges', function () {
       expect(premium1).to.be.gte(premium2)
     })
 
+    it('sell premiums is less than buy premium if oracle price changes largely', async () => {
+      const amount = scaledBN(1, 8)
+      const maxFee = scaledBN(2000, 6)
+      const minFee = scaledBN(0, 6)
+      const price = scaledBN(1001, 8)
+
+      await testContractHelper.updateSpot(price)
+
+      await usdc.approve(amm.address, maxFee)
+      const premium1 = await testContractHelper.buy(seriesId1, amount, maxFee)
+
+      const priceChange = price.mul(DEVIATION_THRESHOLD).div(scaledBN(1, 8))
+
+      await testContractHelper.updateSpot(price.add(priceChange))
+
+      const premium2 = await testContractHelper.sell(seriesId1, scaledBN(1, 6), minFee, wallet)
+      const premium3 = await testContractHelper.sell(seriesId1, amount.sub(scaledBN(1, 6)), minFee, wallet)
+
+      // assertions
+      expect(premium1).to.be.gte(premium2.add(premium3))
+    })
+
     it('price affected after safety period', async () => {
       const amount = scaledBN(1, 8)
       const maxFee = scaledBN(2000, 6)
@@ -175,6 +197,36 @@ describe('priceChanges', function () {
 
       // assertions
       expect(premium1).to.be.lte(premium2)
+    })
+
+    it('buy premiums is greater than sell premium if oracle price change largely', async () => {
+      const amount = scaledBN(1, 8)
+      const maxFee = scaledBN(2000, 6)
+      const price = scaledBN(1020, 8)
+
+      await testContractHelper.updateSpot(price)
+
+      const vaultId = await testContractHelper.createAccount(wallet)
+      const collateral = scaledBN(2000, 6)
+
+      const premium1 = await testContractHelper.makeShortPosition(
+        vaultId,
+        expiryId,
+        seriesId1,
+        amount,
+        collateral,
+        wallet,
+      )
+
+      const priceChange = price.mul(DEVIATION_THRESHOLD).div(scaledBN(1, 8))
+      await testContractHelper.updateSpot(price.sub(priceChange))
+
+      await usdc.approve(amm.address, maxFee)
+      const premium2 = await testContractHelper.buy(seriesId1, scaledBN(1, 6), maxFee)
+      const premium3 = await testContractHelper.buy(seriesId1, amount.sub(scaledBN(1, 6)), maxFee)
+
+      // assertions
+      expect(premium1).to.be.lte(premium2.add(premium3).add(1))
     })
 
     it('price affected after safety period', async () => {
