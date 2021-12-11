@@ -50,12 +50,17 @@ async function main() {
     usdcAddress = '0x4DBCdF9B62e891a7cec5A2568C3F4FAF9E8Abe2b'
     lendingPoolAddress = '0x2eaa9d77ae4d8f9cdd9faacd44016e746485bddb'
     botAddress = '0x00980ae805112d6ae97fdbe0d50f916bdecc1e34'
-  } else if (network.name === 'mainnet') {
+  } else if (network.name === 'homestead') {
     aggregatorAddress = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
     wethAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
     usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
     lendingPoolAddress = '0x7d2768de32b0b80b7a3454c06bdac94a69ddc7a9'
-    botAddress = '0x476bc58e57316242fad6cd86c9caa3c3a2a93594'
+    botAddress = '0x346c2930a61a4529d146e7f9f64203d81535e3f2'
+
+    // deployed
+    priceCalculatorAddress = '0x7560f7a5d617B8bc9b8bAadA934659120561BaEA'
+    priceOracleAddress = '0x8FeEBd1fD65B6706B2837792C5DFA5B569c4cEA7'
+    feePoolAddress = '0x66fBaAd82083716343B9413CAeB77aA13a8053a4'
 
   } else if (network.name === 'polygon') {
     aggregatorAddress = '0xf9680d99d6c9589e2a93a78a04a279e509205945'
@@ -81,7 +86,7 @@ async function main() {
   console.log("chainlink aggregator: ", aggregatorAddress);
   console.log("USDC: ", usdcAddress);
 
-  const operatorAddress = '0x1c745d31A084a14Ba30E7c9F4B14EA762d44f194'
+  const operatorAddress = '0x4f071924D66BBC71A5254217893CC7D49938B1c4'
   const newOperatorAddress = '0xb8d843c8E6e0E90eD2eDe80550856b64da92ee30'
 
   // deploy price calculator
@@ -95,6 +100,34 @@ async function main() {
   }
 
   console.log("PriceCalculator: ", priceCalculatorAddress);
+
+  // deploy fee pool
+  if (feePoolAddress === null) {
+    const FeePool = await ethers.getContractFactory('FeePool')
+    const feePool = await FeePool.deploy(usdcAddress)
+
+    await feePool.deployTransaction.wait()
+
+    feePoolAddress = feePool.address
+  }
+
+  console.log("FeePool: ", feePoolAddress);
+
+  // deploy price oracle
+  if (priceOracleAddress == null) {
+    const PriceOracle = await ethers.getContractFactory('PriceOracle')
+    const priceOracle = await PriceOracle.deploy()
+
+    await priceOracle.deployTransaction.wait()
+
+    const tx = await priceOracle.setAggregator(aggregatorAddress)
+
+    await tx.wait()
+
+    priceOracleAddress = priceOracle.address
+  }
+
+  console.log("PriceOracle: ", priceOracleAddress);
 
   // deploy option vault library
   if (optionLibAddress === null) {
@@ -127,34 +160,6 @@ async function main() {
   }
 
   console.log("AMMLib: ", ammLibAddress);
-
-  // deploy fee pool
-  if (feePoolAddress === null) {
-    const FeePool = await ethers.getContractFactory('FeePool')
-    const feePool = await FeePool.deploy(usdcAddress)
-
-    await feePool.deployTransaction.wait()
-
-    feePoolAddress = feePool.address
-  }
-
-  console.log("FeePool: ", feePoolAddress);
-
-  // deploy price oracle
-  if (priceOracleAddress == null) {
-    const PriceOracle = await ethers.getContractFactory('PriceOracle')
-    const priceOracle = await PriceOracle.deploy()
-
-    await priceOracle.deployTransaction.wait()
-
-    const tx = await priceOracle.setAggregator(aggregatorAddress)
-
-    await tx.wait()
-
-    priceOracleAddress = priceOracleAddress
-  }
-
-  console.log("PriceOracle: ", priceOracleAddress);
 
   // deploy option vault factory
   const OptionVaultFactory = await ethers.getContractFactory('OptionVaultFactory', {
