@@ -1748,4 +1748,62 @@ describe('AMM', function () {
       expect(after.sub(before)).to.be.eq(withdrawableAmount)
     })
   })
+
+  describe('splitted liquidity', () => {
+    let expiryId: BigNumber
+    let seriesId: BigNumber
+    let seriesId2: BigNumber
+    const depositAmount = scaledBN(4800, 6)
+    const range1 = {
+      lower: 8,
+      upper: 9,
+    }
+    const range2 = {
+      lower: 10,
+      upper: 11,
+    }
+
+    beforeEach(async () => {
+      const expiry = await getExpiry(28)
+      const strike = scaledBN(1010, 8)
+      const iv = scaledBN(100, 6)
+
+      const result = await testContractHelper.createExpiry(expiry, [strike, strike], [iv, scaledBN(90, 6)])
+
+      expiryId = result.expiryId
+      seriesId = result.calls[0]
+      seriesId2 = result.calls[1]
+
+      // deposit
+      await usdc.approve(amm.address, depositAmount)
+      await amm.deposit(depositAmount, depositAmount, range1.lower, range1.upper)
+
+      // deposit
+      await usdc.approve(amm.address, depositAmount)
+      await amm.deposit(depositAmount, depositAmount, range2.lower, range2.upper)
+    })
+
+    it('buy and sell options throught splitted liquidity', async () => {
+      const amount = scaledBN(18, 7)
+      const maxFee = scaledBN(1000, 6)
+
+      const before = await optionVault.balanceOf(wallet.address, seriesId)
+      await usdc.approve(amm.address, maxFee)
+      const premium = await testContractHelper.buy(seriesId, amount, maxFee)
+      const after = await optionVault.balanceOf(wallet.address, seriesId)
+
+      // assertions
+      expect(after.sub(before)).to.be.eq(amount)
+      expect(premium).to.be.gt(0)
+
+      expect(await getIV(seriesId)).to.be.gt(100000000)
+
+      const beforeSelling = await optionVault.balanceOf(wallet.address, seriesId)
+      await testContractHelper.sell(seriesId, amount, 0, wallet)
+      const afterSelling = await optionVault.balanceOf(wallet.address, seriesId)
+
+      // assertions
+      expect(beforeSelling.sub(afterSelling)).to.be.eq(amount)
+    })
+  })
 })
