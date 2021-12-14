@@ -20,8 +20,8 @@ async function main() {
   let ammLibAddress = null
   let optionLibAddress = null
 
-  let optionURI = ''
-  let lpTokenURI = ''
+  let optionURI = 'https://uri.predy.finance/v1/options'
+  let lpTokenURI = 'https://uri.predy.finance/v1/lptokens'
 
   console.log(network.name)
 
